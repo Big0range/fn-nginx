@@ -17,7 +17,7 @@
 
 ```
 .
-├── manifest                  # fnOS 应用元信息（端口 12600、依赖 nodejs_v24 等）
+├── manifest                  # fnOS 应用元信息（端口 12400、依赖 nodejs_v24 等）
 ├── fnpack                    # 打包工具
 ├── cmd/                      # fnOS 生命周期脚本（main / install / uninstall / upgrade ...）
 ├── config/
@@ -25,7 +25,7 @@
 │   └── resource              # 共享目录声明
 ├── app/
 │   ├── ui/                   # 桌面入口配置与图标
-│   │   └── config            # iframe 入口，端口 12600
+│   │   └── config            # iframe 入口，端口 12400
 │   └── server/
 │       ├── app.js            # Express 入口
 │       ├── routes/api.js     # 管理接口
@@ -48,7 +48,7 @@ npm install
 npm start          # node ./bin/www
 ```
 
-访问 `http://localhost:12400`（未设置环境变量时的默认端口）；生产环境由 `TRIM_SERVICE_PORT` 提供，端口为 **12600**。
+访问 `http://localhost:12400`（未设置环境变量时的默认端口）；生产环境由 `TRIM_SERVICE_PORT` 提供，端口为 **12400**。
 
 ### 在 Windows 上开发
 
@@ -63,15 +63,15 @@ npm start          # node ./bin/www
 
 所有路径由 `app/server/config/index.js` 统一计算：
 
-| 变量 | 说明 | 生产环境 | 本地开发 |
-| --- | --- | --- | --- |
-| `TRIM_PKGVAR` | 应用数据目录 | 由 fnOS 注入 | 未设置 |
-| `TRIM_SERVICE_PORT` / `wizard_port` | 服务端口 | 12600 | 12400 |
-| `NGINX` | nginx 二进制 | `$TRIM_PKGVAR/nginx/sbin/nginx` | `app/server/nginx/sbin/nginx` |
-| `NGINX_P` | `-p` 前缀目录 | `$TRIM_PKGVAR/nginx` | `app/server/nginx` |
-| `NGINX_C` | 主配置 `-c` | `$TRIM_PKGVAR/nginx/conf/nginx.conf` | `app/server/nginx/conf/nginx.conf` |
-| `NGINX_D` | 站点配置目录 | `$TRIM_PKGVAR/nginx/conf.d` | `app/server/nginx/conf.d` |
-| `NGINX_STUB_URL` | 可选，直接指定 `stub_status` 地址 | — | — |
+| 变量                                | 说明                              | 生产环境                             | 本地开发                           |
+| ----------------------------------- | --------------------------------- | ------------------------------------ | ---------------------------------- |
+| `TRIM_PKGVAR`                       | 应用数据目录                      | 由 fnOS 注入                         | 未设置                             |
+| `TRIM_SERVICE_PORT` / `wizard_port` | 服务端口                          | 12400                                | 12400                              |
+| `NGINX`                             | nginx 二进制                      | `$TRIM_PKGVAR/nginx/sbin/nginx`      | `app/server/nginx/sbin/nginx`      |
+| `NGINX_P`                           | `-p` 前缀目录                     | `$TRIM_PKGVAR/nginx`                 | `app/server/nginx`                 |
+| `NGINX_C`                           | 主配置 `-c`                       | `$TRIM_PKGVAR/nginx/conf/nginx.conf` | `app/server/nginx/conf/nginx.conf` |
+| `NGINX_D`                           | 站点配置目录                      | `$TRIM_PKGVAR/nginx/conf.d`          | `app/server/nginx/conf.d`          |
+| `NGINX_STUB_URL`                    | 可选，直接指定 `stub_status` 地址 | —                                    | —                                  |
 
 > `nginx-control` 脚本使用的是 `$TRIM_APPDEST/app/server/nginx/sbin/nginx`、`$TRIM_PKGETC/nginx`、`$TRIM_PKGVAR/nginx`。部署时请保证它与管理接口实际读写的配置目录一致，否则页面里改的配置不会被真正加载。
 
@@ -79,19 +79,19 @@ npm start          # node ./bin/www
 
 统一约定：错误返回非 2xx 且 `{ "message": "..." }`；JSON 响应禁用缓存。
 
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| GET | `/api/configs` | `conf.d` 配置列表 + 主配置元信息 |
-| GET | `/api/configs/:name` | 读取单个配置文件 `{ content }` |
-| PUT | `/api/configs/:name` | 新建或覆盖，body `{ content }` |
-| DELETE | `/api/configs/:name` | 删除配置文件 |
-| GET | `/api/main-config` | 读取主配置 `nginx.conf` |
-| PUT | `/api/main-config` | 保存主配置，body `{ content }` |
-| GET | `/api/status` | `{ running, pid, version }` |
-| GET | `/api/load` | `{ stub, process }` 负载数据 |
-| GET | `/api/performance` | `{ items: [{ key, value, isDefault }] }` |
-| PUT | `/api/performance` | body `{ values }`，写回 `nginx.conf` |
-| POST | `/api/start` / `/api/stop` / `/api/reload` | 启动 / 停止 / 重载 Nginx |
+| 方法   | 路径                                       | 说明                                     |
+| ------ | ------------------------------------------ | ---------------------------------------- |
+| GET    | `/api/configs`                             | `conf.d` 配置列表 + 主配置元信息         |
+| GET    | `/api/configs/:name`                       | 读取单个配置文件 `{ content }`           |
+| PUT    | `/api/configs/:name`                       | 新建或覆盖，body `{ content }`           |
+| DELETE | `/api/configs/:name`                       | 删除配置文件                             |
+| GET    | `/api/main-config`                         | 读取主配置 `nginx.conf`                  |
+| PUT    | `/api/main-config`                         | 保存主配置，body `{ content }`           |
+| GET    | `/api/status`                              | `{ running, pid, version }`              |
+| GET    | `/api/load`                                | `{ stub, process }` 负载数据             |
+| GET    | `/api/performance`                         | `{ items: [{ key, value, isDefault }] }` |
+| PUT    | `/api/performance`                         | body `{ values }`，写回 `nginx.conf`     |
+| POST   | `/api/start` / `/api/stop` / `/api/reload` | 启动 / 停止 / 重载 Nginx                 |
 
 配置文件名校验规则：`[A-Za-z0-9_][A-Za-z0-9._-]*.conf`，禁止以 `.` 开头及包含 `..`。
 
@@ -128,4 +128,4 @@ location = /nginx_status {
 
 - 依赖 `nodejs_v24`（`install_dep_apps`），安装后由 `cmd/install_callback` 执行 `npm install`
 - 服务通过 `cmd/main` 启动，PID 记录在 `$TRIM_PKGVAR/app.pid`，日志写入 `$TRIM_PKGVAR/info.log`
-- 桌面入口为 iframe，端口 12600（`app/ui/config`）
+- 桌面入口为 iframe，端口 12400（`app/ui/config`）

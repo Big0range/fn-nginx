@@ -334,11 +334,6 @@
         pointer-events: none;
       }
 
-      .btn[aria-pressed="true"] {
-        background: var(--accent-soft);
-        color: var(--accent);
-      }
-
       .btn.is-busy::after {
         content: "";
         position: absolute;
@@ -1546,12 +1541,6 @@
         <span class="version-chip" id="versionChip" hidden></span>
 
         <div class="topbar-actions">
-          <button class="btn ghost" id="btnLoad" type="button" aria-pressed="true" title="显示 / 隐藏负载状态">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12h4l3-8 4 16 3-8h4" />
-            </svg>
-            <span class="btn-text">负载</span>
-          </button>
           <button class="btn ghost" id="btnReload" type="button" title="重新加载配置" disabled>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
               <path d="M20 11a8 8 0 1 0-2.3 6.3" />
@@ -1588,9 +1577,9 @@
       <section class="loadwrap" aria-label="Nginx 负载状态">
         <div class="load-head">
           <span class="load-title">负载状态</span>
-          <button class="perf-toggle" id="loadToggle" type="button" aria-expanded="true">收起</button>
+          <button class="perf-toggle" id="loadToggle" type="button" aria-expanded="false">展开</button>
         </div>
-        <div class="loadbar" id="loadBar">
+        <div class="loadbar" id="loadBar" hidden>
         <div class="metric"><span class="metric-label">活动连接</span><span class="metric-value" data-metric="active">—</span></div>
         <div class="metric"><span class="metric-label">总连接次数</span><span class="metric-value" data-metric="accepts">—</span></div>
         <div class="metric"><span class="metric-label">总握手次数</span><span class="metric-value" data-metric="handled">—</span></div>
@@ -1613,10 +1602,10 @@
             <button class="perf-btn" id="perfEdit" type="button">编辑</button>
             <button class="perf-btn is-primary" id="perfSave" type="button" hidden>保存</button>
             <button class="perf-btn" id="perfCancel" type="button" hidden>取消</button>
-            <button class="perf-toggle" id="perfToggle" type="button" aria-expanded="true">收起</button>
+            <button class="perf-toggle" id="perfToggle" type="button" aria-expanded="false">展开</button>
           </div>
         </div>
-        <div class="perf-grid" id="perfGrid"></div>
+        <div class="perf-grid" id="perfGrid" hidden></div>
       </section>
 
       <!-- Workspace -->
@@ -1761,7 +1750,7 @@
           listStatus: "loading", // loading | ready | error
           listError: "",
           active: null,
-          activeKind: null, // main | file
+          activeKind: null, // main | file | draft
           content: "",
           savedContent: "",
           dirty: false,
@@ -1805,7 +1794,6 @@
           bannerRetry: $("bannerRetry"),
           loadBar: $("loadBar"),
           loadToggle: $("loadToggle"),
-          btnLoad: $("btnLoad"),
           perfGrid: $("perfGrid"),
           perfToggle: $("perfToggle"),
           perfEdit: $("perfEdit"),
@@ -2226,24 +2214,23 @@
             });
         }
 
-        /* 负载面板显示 / 隐藏 */
-        var loadOpen = true;
+        /* 负载面板显示 / 隐藏（默认收起） */
+        var loadOpen = false;
         try {
-          if (localStorage.getItem("nginx.loadbar") === "0") loadOpen = false;
+          if (localStorage.getItem("nginx.loadbar.v2") === "1") loadOpen = true;
         } catch (e) {}
 
         function applyLoadVisibility() {
           els.loadBar.hidden = !loadOpen;
           els.loadToggle.textContent = loadOpen ? "收起" : "展开";
           els.loadToggle.setAttribute("aria-expanded", loadOpen ? "true" : "false");
-          els.btnLoad.setAttribute("aria-pressed", loadOpen ? "true" : "false");
         }
 
         function toggleLoad() {
           loadOpen = !loadOpen;
           applyLoadVisibility();
           try {
-            localStorage.setItem("nginx.loadbar", loadOpen ? "1" : "0");
+            localStorage.setItem("nginx.loadbar.v2", loadOpen ? "1" : "0");
           } catch (e) {}
           if (loadOpen) fetchLoad();
         }
@@ -2465,9 +2452,9 @@
             });
         }
 
-        var perfOpen = true;
+        var perfOpen = false;
         try {
-          if (localStorage.getItem("nginx.perf") === "0") perfOpen = false;
+          if (localStorage.getItem("nginx.perf.v2") === "1") perfOpen = true;
         } catch (e) {}
 
         function applyPerfVisibility() {
@@ -2480,7 +2467,7 @@
           perfOpen = !perfOpen;
           applyPerfVisibility();
           try {
-            localStorage.setItem("nginx.perf", perfOpen ? "1" : "0");
+            localStorage.setItem("nginx.perf.v2", perfOpen ? "1" : "0");
           } catch (e) {}
         }
 
@@ -2802,7 +2789,7 @@
           els.dirtyBadge.hidden = !state.dirty;
           els.btnSave.disabled = !state.dirty || state.busy === "save";
           els.btnSave.classList.toggle("is-busy", state.busy === "save");
-          els.btnDelete.hidden = state.activeKind === "main";
+          els.btnDelete.hidden = state.activeKind === "main" || state.activeKind === "draft";
           els.btnDelete.disabled = !!state.busy || state.editorLoading;
         }
 
@@ -2916,6 +2903,13 @@
           var name = state.active;
           var content = state.content;
           var isMain = state.activeKind === "main";
+          var isDraft = state.activeKind === "draft";
+
+          if (isDraft && state.files.some(function (f) { return f.name === name; })) {
+            toast(name + " 已存在", "error");
+            return;
+          }
+
           setBusy("save");
           updateChrome();
 
@@ -2923,7 +2917,8 @@
             .then(function () {
               state.savedContent = content;
               state.dirty = false;
-              toast(name + " 已保存" + (isMain ? "，重载后生效" : ""), "success");
+              if (isDraft) state.activeKind = "file";
+              toast(name + (isDraft ? " 已创建" : " 已保存") + (isMain ? "，重载后生效" : ""), "success");
               return loadFiles();
             })
             .catch(function (err) {
@@ -2936,7 +2931,7 @@
         }
 
         function deleteFile() {
-          if (!state.active || state.busy || state.activeKind === "main") return;
+          if (!state.active || state.busy || state.activeKind !== "file") return;
           var name = state.active;
           openDialog({
             title: "删除配置文件",
@@ -3002,22 +2997,33 @@
               toast(name + " 已存在", "error");
               return;
             }
-            setBusy("save");
-            API.write(name, FILE_TEMPLATE)
-              .then(function () {
-                toast(name + " 已创建", "success");
-                return loadFiles();
-              })
-              .then(function () {
-                return openFile(name);
-              })
-              .catch(function (err) {
-                toast("创建失败：" + err.message, "error");
-              })
-              .then(function () {
-                setBusy(null);
-              });
+            openDraft(name);
           });
+        }
+
+        // 新建文件：先进入未保存的草稿态，点“保存”才真正写入磁盘
+        function openDraft(name) {
+          state.active = name;
+          state.activeKind = "draft";
+          state.editorLoading = false;
+          state.content = FILE_TEMPLATE;
+          state.savedContent = "";
+          state.dirty = true;
+
+          showEditorFor(name);
+          els.editorLoading.hidden = true;
+          els.code.value = state.content;
+          els.code.scrollTop = 0;
+          els.code.scrollLeft = 0;
+          renderCode(state.content);
+          updateChrome();
+          renderFiles();
+
+          if (window.matchMedia && window.matchMedia("(min-width: 881px)").matches) {
+            els.code.focus();
+            els.code.setSelectionRange(0, 0);
+            updateCursor();
+          }
         }
 
         /* ============================ 电源操作 ============================ */
@@ -3051,7 +3057,6 @@
         }
 
         /* ============================ 事件绑定 ============================ */
-        els.btnLoad.addEventListener("click", toggleLoad);
         els.loadToggle.addEventListener("click", toggleLoad);
         els.perfToggle.addEventListener("click", togglePerf);
         els.perfEdit.addEventListener("click", startPerfEdit);

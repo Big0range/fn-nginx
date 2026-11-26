@@ -1,14 +1,13 @@
 appname               = simple-nginx
 version               = 1.0.0
-display_name          = Simple Nginx
-desc                  = 极简nginx, 人如其名, 几乎没有什么快捷功能, 和自己编辑nginx配置差不多
+display_name          = 极简 nginx
+desc                  = 极简 nginx，名副其实——没有繁琐的操作，没有多余的快捷功能，体验就如同亲手编辑 nginx 配置。添加站点前，请确保已为本应用授予对应文件的访问权限。
 platform              = all
 source                = thirdparty
 maintainer            = Big0range
-maintainer_url        = https://github.com/Big0range
+maintainer_url        = https://github.com/Big0range/fn-nginx
 distributor           = Big0range
 distributor_url       = https://github.com/Big0range/fn-nginx
 desktop_uidir         = ui
 desktop_applaunchname = simple-nginx.Application
 install_dep_apps = nodejs_v24
-service_port = 12600
