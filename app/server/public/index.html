@@ -1,0 +1,2387 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4f3ef" />
+    <title>Nginx · 配置管理</title>
+    <style>
+      /* ------------------------------------------------------------------
+         Nginx Manager — 单页管理界面（无外部依赖，由 Express 静态托管）
+         后端接口契约见文件末尾注释
+      ------------------------------------------------------------------ */
+      :root {
+        --bg: #f4f3ef;
+        --panel: #fbfaf7;
+        --surface: #ffffff;
+        --ink: #15201a;
+        --ink-2: #3d4c44;
+        --muted: #77857d;
+        --line: #e4e2da;
+        --line-strong: #d6d3c9;
+        --accent: #0d7a4e;
+        --accent-hover: #0a6541;
+        --accent-soft: #e6f2ec;
+        --danger: #b42318;
+        --danger-soft: #fdecea;
+        --amber: #a86400;
+        --amber-soft: #fbf3e2;
+
+        --editor-bg: #101815;
+        --editor-gutter: #0c1310;
+        --editor-ink: #dbe6df;
+        --editor-line: #1b2a24;
+
+        --radius: 10px;
+        --shadow-sm: 0 1px 2px rgba(21, 32, 26, 0.06);
+        --shadow-lg: 0 18px 44px -12px rgba(16, 24, 21, 0.32);
+        --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+        --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono",
+          Consolas, Menlo, "Courier New", monospace;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--font);
+        font-size: 14px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        overflow: hidden;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(120, 140, 130, 0.36);
+        border: 2px solid transparent;
+        background-clip: content-box;
+        border-radius: 999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(120, 140, 130, 0.6);
+        background-clip: content-box;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      /* ---------------- Shell ---------------- */
+      .app {
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+      }
+
+      .topbar {
+        flex: none;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 20px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+        z-index: 30;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        flex: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(150deg, #12935f 0%, #0a5f3c 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22),
+          0 2px 6px rgba(10, 95, 60, 0.28);
+        color: #fff;
+      }
+
+      .brand-text {
+        min-width: 0;
+      }
+
+      .brand-text h1 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 660;
+        letter-spacing: 0.01em;
+        line-height: 1.25;
+      }
+
+      .brand-text p {
+        margin: 1px 0 0;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 32px;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--panel);
+        font-size: 12.5px;
+        font-weight: 560;
+        color: var(--ink-2);
+        white-space: nowrap;
+        user-select: none;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex: none;
+        background: #a9b3ad;
+      }
+
+      .dot-run {
+        background: #17a365;
+        box-shadow: 0 0 0 3px rgba(23, 163, 101, 0.16);
+        animation: breathe 2.6s ease-in-out infinite;
+      }
+
+      .dot-stop {
+        background: #b6a08a;
+      }
+
+      .dot-unknown {
+        background: #c9c4b8;
+      }
+
+      .pill-sub {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+
+      @keyframes breathe {
+        0%,
+        100% {
+          box-shadow: 0 0 0 3px rgba(23, 163, 101, 0.16);
+        }
+        50% {
+          box-shadow: 0 0 0 5px rgba(23, 163, 101, 0.06);
+        }
+      }
+
+      .topbar-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* ---------------- Buttons ---------------- */
+      .btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        height: 36px;
+        padding: 0 14px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        font-size: 13.5px;
+        font-weight: 560;
+        white-space: nowrap;
+        transition: background-color 0.15s ease, border-color 0.15s ease,
+          color 0.15s ease, transform 0.08s ease, opacity 0.15s ease;
+      }
+
+      .btn svg {
+        flex: none;
+      }
+
+      .btn:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+
+      .btn:disabled {
+        opacity: 0.42;
+        cursor: not-allowed;
+      }
+
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 1px 2px rgba(10, 101, 65, 0.3);
+      }
+
+      .btn.primary:hover:not(:disabled) {
+        background: var(--accent-hover);
+      }
+
+      .btn.primary-soft {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .btn.primary-soft:hover:not(:disabled) {
+        background: #d8ece2;
+      }
+
+      .btn.outline {
+        background: var(--surface);
+        border-color: var(--line-strong);
+        color: var(--ink-2);
+      }
+
+      .btn.outline:hover:not(:disabled) {
+        border-color: #bdb9ab;
+        background: #fbfaf7;
+      }
+
+      .btn.ghost {
+        color: var(--ink-2);
+      }
+
+      .btn.ghost:hover:not(:disabled) {
+        background: rgba(21, 32, 26, 0.055);
+      }
+
+      .btn.danger {
+        background: var(--danger);
+        color: #fff;
+      }
+
+      .btn.danger:hover:not(:disabled) {
+        background: #9c1d13;
+      }
+
+      .btn.danger-ghost {
+        color: var(--danger);
+      }
+
+      .btn.danger-ghost:hover:not(:disabled) {
+        background: var(--danger-soft);
+      }
+
+      .btn.is-busy {
+        color: transparent !important;
+        pointer-events: none;
+      }
+
+      .btn.is-busy::after {
+        content: "";
+        position: absolute;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        color: #fff;
+        animation: spin 0.7s linear infinite;
+      }
+
+      .btn.ghost.is-busy::after,
+      .btn.outline.is-busy::after,
+      .btn.primary-soft.is-busy::after {
+        color: var(--accent);
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .icon-btn {
+        display: inline-grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--ink-2);
+        transition: background-color 0.15s ease, color 0.15s ease;
+      }
+
+      .icon-btn:hover {
+        background: rgba(21, 32, 26, 0.055);
+      }
+
+      .icon-btn.accent {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 1px 2px rgba(10, 101, 65, 0.28);
+      }
+
+      .icon-btn.accent:hover {
+        background: var(--accent-hover);
+      }
+
+      .menu-btn {
+        display: none;
+      }
+
+      /* ---------------- Banner ---------------- */
+      .banner {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 20px;
+        background: var(--danger-soft);
+        color: var(--danger);
+        font-size: 13px;
+        border-bottom: 1px solid #f3cdc8;
+      }
+
+      .banner .banner-retry {
+        margin-left: auto;
+        height: 28px;
+        padding: 0 12px;
+        border: 1px solid rgba(180, 35, 24, 0.32);
+        border-radius: 7px;
+        background: #fff;
+        color: var(--danger);
+        font-size: 12.5px;
+        font-weight: 560;
+      }
+
+      /* ---------------- Workspace ---------------- */
+      .workspace {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 292px minmax(0, 1fr);
+      }
+
+      /* ---------------- Sidebar ---------------- */
+      .sidebar {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--panel);
+        border-right: 1px solid var(--line);
+      }
+
+      .sidebar-head {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 12px 10px;
+      }
+
+      .search {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .search svg {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted);
+        pointer-events: none;
+      }
+
+      .search input {
+        width: 100%;
+        height: 36px;
+        padding: 0 10px 0 32px;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: var(--surface);
+        font-size: 13px;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .search input::placeholder {
+        color: #9aa59e;
+      }
+
+      .search input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(13, 122, 78, 0.12);
+      }
+
+      .file-list {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 2px 8px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .file-item {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 9px 10px 9px 12px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        text-align: left;
+        color: var(--ink);
+        transition: background-color 0.13s ease;
+      }
+
+      .file-item::before {
+        content: "";
+        position: absolute;
+        left: 3px;
+        top: 50%;
+        width: 3px;
+        height: 0;
+        border-radius: 999px;
+        background: var(--accent);
+        transform: translateY(-50%);
+        transition: height 0.15s ease;
+      }
+
+      .file-item:hover {
+        background: rgba(21, 32, 26, 0.045);
+      }
+
+      .file-item[aria-current="true"] {
+        background: var(--accent-soft);
+      }
+
+      .file-item[aria-current="true"]::before {
+        height: 20px;
+      }
+
+      .file-item[aria-current="true"] .file-icon {
+        color: var(--accent);
+      }
+
+      .file-icon {
+        flex: none;
+        color: #93a29a;
+        display: grid;
+        place-items: center;
+      }
+
+      .file-text {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+
+      .file-name {
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 520;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .file-sub {
+        font-size: 11px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .sidebar-foot {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 14px;
+        border-top: 1px solid var(--line);
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+
+      .sidebar-foot .foot-dir {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 11px;
+        opacity: 0.85;
+      }
+
+      .list-note {
+        padding: 28px 14px;
+        text-align: center;
+        font-size: 12.5px;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .list-note strong {
+        display: block;
+        color: var(--ink-2);
+        font-weight: 560;
+        margin-bottom: 2px;
+      }
+
+      .skeleton-row {
+        height: 46px;
+        border-radius: 8px;
+        margin: 3px 2px;
+        background: linear-gradient(
+          100deg,
+          rgba(21, 32, 26, 0.045) 30%,
+          rgba(21, 32, 26, 0.08) 50%,
+          rgba(21, 32, 26, 0.045) 70%
+        );
+        background-size: 220% 100%;
+        animation: shimmer 1.3s ease-in-out infinite;
+      }
+
+      @keyframes shimmer {
+        from {
+          background-position: 130% 0;
+        }
+        to {
+          background-position: -30% 0;
+        }
+      }
+
+      /* ---------------- Editor pane ---------------- */
+      .editor-pane {
+        position: relative;
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--surface);
+      }
+
+      .editor {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .editor-head {
+        flex: none;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 14px 0 18px;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .file-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-width: 0;
+      }
+
+      .file-title-text {
+        font-family: var(--mono);
+        font-size: 13.5px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .dirty {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 21px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: var(--amber-soft);
+        color: var(--amber);
+        font-size: 11px;
+        font-weight: 560;
+        white-space: nowrap;
+      }
+
+      .dirty::before {
+        content: "";
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .editor-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .editor-body {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        background: var(--editor-bg);
+        overflow: hidden;
+      }
+
+      .gutter {
+        flex: none;
+        width: 58px;
+        overflow: hidden;
+        padding: 18px 0;
+        background: var(--editor-gutter);
+        border-right: 1px solid var(--editor-line);
+        font-family: var(--mono);
+        font-size: 13.5px;
+        line-height: 22px;
+        color: #4c6156;
+        user-select: none;
+        text-align: right;
+      }
+
+      .gutter-inner {
+        padding: 0 12px 0 8px;
+        will-change: transform;
+      }
+
+      .gutter-inner span {
+        display: block;
+        height: 22px;
+      }
+
+      .gutter-inner span.is-active {
+        color: #8fe3b8;
+      }
+
+      .code-area {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .code-highlight,
+      .code-input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        padding: 18px 20px;
+        border: 0;
+        font-family: var(--mono);
+        font-size: 13.5px;
+        line-height: 22px;
+        tab-size: 4;
+        -moz-tab-size: 4;
+        letter-spacing: 0;
+        white-space: pre;
+        word-wrap: normal;
+        overflow-wrap: normal;
+      }
+
+      .code-highlight {
+        overflow: hidden;
+        color: var(--editor-ink);
+        pointer-events: none;
+        background: transparent;
+      }
+
+      .code-input {
+        overflow: auto;
+        resize: none;
+        background: transparent;
+        color: transparent;
+        caret-color: #7fe0b0;
+        outline: none;
+      }
+
+      .code-input::selection {
+        background: rgba(45, 200, 130, 0.28);
+        color: transparent;
+      }
+
+      .tok-comment {
+        color: #5c7568;
+        font-style: italic;
+      }
+      .tok-string {
+        color: #e8c07d;
+      }
+      .tok-key {
+        color: #78d5a8;
+        font-weight: 600;
+      }
+      .tok-var {
+        color: #8fb8ff;
+      }
+      .tok-num {
+        color: #f0a978;
+      }
+      .tok-punct {
+        color: #8aa197;
+      }
+
+      .editor-foot {
+        flex: none;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 16px;
+        background: var(--panel);
+        border-top: 1px solid var(--line);
+        font-size: 11.5px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .editor-foot .hint {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      kbd {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        padding: 2px 5px;
+        border: 1px solid var(--line-strong);
+        border-bottom-width: 2px;
+        border-radius: 4px;
+        background: var(--surface);
+        color: var(--ink-2);
+      }
+
+      .editor-loading {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        background: rgba(16, 24, 21, 0.86);
+        color: #a9c2b5;
+        font-size: 13px;
+        z-index: 4;
+      }
+
+      .spinner {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid rgba(169, 194, 181, 0.28);
+        border-top-color: #7fe0b0;
+        animation: spin 0.8s linear infinite;
+      }
+
+      /* ---------------- Empty state ---------------- */
+      .empty {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 40px 24px;
+        text-align: center;
+      }
+
+      .empty-art {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 16px 22px;
+        margin-bottom: 8px;
+        border: 1px dashed var(--line-strong);
+        border-radius: 12px;
+        background: var(--panel);
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .ea-prompt {
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .ea-sigil {
+        color: #b8c4bd;
+      }
+
+      .ea-caret {
+        width: 7px;
+        height: 15px;
+        border-radius: 1px;
+        background: var(--accent);
+        animation: blink 1.15s steps(1) infinite;
+      }
+
+      @keyframes blink {
+        0%,
+        49% {
+          opacity: 1;
+        }
+        50%,
+        100% {
+          opacity: 0;
+        }
+      }
+
+      .empty h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 620;
+        letter-spacing: -0.01em;
+      }
+
+      .empty p {
+        margin: 0 0 6px;
+        max-width: 340px;
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      /* ---------------- Toasts ---------------- */
+      .toasts {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 120;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+
+      .toast {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        max-width: 360px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: #16211c;
+        color: #eef4f0;
+        font-size: 13px;
+        line-height: 1.5;
+        box-shadow: 0 10px 26px -8px rgba(10, 18, 14, 0.5);
+        animation: toast-in 0.22s cubic-bezier(0.2, 0.8, 0.3, 1);
+        pointer-events: auto;
+      }
+
+      .toast::before {
+        content: "";
+        flex: none;
+        width: 7px;
+        height: 7px;
+        margin-top: 6px;
+        border-radius: 50%;
+        background: #7fe0b0;
+      }
+
+      .toast.error::before {
+        background: #ff8a7d;
+      }
+
+      .toast.info::before {
+        background: #8fb8ff;
+      }
+
+      .toast.is-out {
+        animation: toast-out 0.18s ease forwards;
+      }
+
+      @keyframes toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px) scale(0.98);
+        }
+      }
+
+      @keyframes toast-out {
+        to {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+      }
+
+      /* ---------------- Modal ---------------- */
+      .modal-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        background: rgba(12, 20, 16, 0.42);
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
+        animation: fade-in 0.16s ease;
+      }
+
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+        }
+      }
+
+      .modal {
+        width: min(430px, 100%);
+        padding: 22px;
+        border-radius: 14px;
+        background: var(--surface);
+        box-shadow: var(--shadow-lg);
+        animation: modal-in 0.2s cubic-bezier(0.2, 0.8, 0.3, 1);
+      }
+
+      @keyframes modal-in {
+        from {
+          opacity: 0;
+          transform: translateY(10px) scale(0.985);
+        }
+      }
+
+      .modal h2 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        font-weight: 620;
+        letter-spacing: -0.01em;
+      }
+
+      .modal p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.65;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+      }
+
+      .modal-input {
+        width: 100%;
+        height: 40px;
+        margin-top: 14px;
+        padding: 0 12px;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: var(--surface);
+        font-family: var(--mono);
+        font-size: 13px;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .modal-input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(13, 122, 78, 0.12);
+      }
+
+      .modal-hint {
+        margin-top: 6px;
+        font-size: 11.5px;
+        color: #93a29a;
+        font-family: var(--mono);
+        min-height: 16px;
+      }
+
+      .modal-hint.is-error {
+        color: var(--danger);
+      }
+
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 20px;
+      }
+
+      .scrim {
+        display: none;
+      }
+
+      /* ---------------- Responsive ---------------- */
+      @media (max-width: 880px) {
+        .topbar {
+          padding: 0 12px;
+          gap: 10px;
+        }
+
+        .brand-text p {
+          display: none;
+        }
+
+        .status-pill {
+          padding: 0 10px;
+        }
+
+        .pill-sub {
+          display: none;
+        }
+
+        .btn .btn-text {
+          display: none;
+        }
+
+        .btn {
+          width: 36px;
+          padding: 0;
+        }
+
+        .menu-btn {
+          display: inline-grid;
+        }
+
+        .workspace {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .sidebar {
+          position: fixed;
+          top: 64px;
+          bottom: 0;
+          left: 0;
+          width: 290px;
+          z-index: 60;
+          transform: translateX(-102%);
+          transition: transform 0.22s cubic-bezier(0.3, 0.9, 0.3, 1);
+          box-shadow: 12px 0 32px -18px rgba(16, 24, 21, 0.4);
+        }
+
+        .app.nav-open .sidebar {
+          transform: none;
+        }
+
+        .scrim {
+          display: block;
+          position: fixed;
+          inset: 64px 0 0;
+          z-index: 55;
+          background: rgba(12, 20, 16, 0.32);
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s ease;
+        }
+
+        .app.nav-open .scrim {
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .editor-head {
+          padding: 0 10px 0 14px;
+        }
+
+        .editor-foot .hint {
+          display: none;
+        }
+
+        .gutter {
+          width: 46px;
+          font-size: 12.5px;
+        }
+
+        .code-highlight,
+        .code-input {
+          font-size: 13px;
+          padding: 16px 14px;
+        }
+
+        .gutter {
+          padding-top: 16px;
+        }
+
+        .toasts {
+          left: 12px;
+          right: 12px;
+          bottom: 12px;
+        }
+
+        .toast {
+          max-width: none;
+        }
+      }
+
+      @media (max-width: 540px) {
+        .status-pill {
+          display: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app" id="app">
+      <!-- Top bar -->
+      <header class="topbar">
+        <button
+          class="icon-btn menu-btn"
+          id="btnMenu"
+          type="button"
+          aria-label="打开配置文件列表"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 18V6l12 12V6" />
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1>Nginx</h1>
+            <p>conf.d · 配置管理</p>
+          </div>
+        </div>
+
+        <div class="status-pill" id="statusPill" role="status" aria-live="polite">
+          <span class="dot dot-unknown"></span>
+          <span id="statusText">检查中…</span>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="btn ghost" id="btnReload" type="button" title="重新加载配置" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 11a8 8 0 1 0-2.3 6.3" />
+              <path d="M20 5v6h-6" />
+            </svg>
+            <span class="btn-text">重载</span>
+          </button>
+          <button class="btn outline" id="btnStop" type="button" title="停止 Nginx" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+            <span class="btn-text">停止</span>
+          </button>
+          <button class="btn primary" id="btnStart" type="button" title="启动 Nginx" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5.2v13.6c0 .8.9 1.3 1.6.9l10.4-6.8c.6-.4.6-1.4 0-1.8L9.6 4.3C8.9 3.9 8 4.4 8 5.2z" />
+            </svg>
+            <span class="btn-text">启动</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Connection banner -->
+      <div class="banner" id="banner" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7.5v5M12 16h.01" />
+        </svg>
+        <span id="bannerText">无法连接到后端服务</span>
+        <button class="banner-retry" id="bannerRetry" type="button">重试</button>
+      </div>
+
+      <!-- Workspace -->
+      <main class="workspace">
+        <aside class="sidebar" id="sidebar" aria-label="配置文件列表">
+          <div class="sidebar-head">
+            <div class="search">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m16.5 16.5 4 4" />
+              </svg>
+              <input id="search" type="search" placeholder="搜索配置文件" autocomplete="off" aria-label="搜索配置文件" />
+            </div>
+            <button class="icon-btn" id="btnRefresh" type="button" title="刷新列表" aria-label="刷新列表">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11a8 8 0 1 0-2.3 6.3" />
+                <path d="M20 5v6h-6" />
+              </svg>
+            </button>
+            <button class="icon-btn accent" id="btnNew" type="button" title="新建配置" aria-label="新建配置">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="file-list" id="fileList"></div>
+
+          <div class="sidebar-foot">
+            <span id="fileCount">—</span>
+            <span class="foot-dir">conf.d/</span>
+          </div>
+        </aside>
+
+        <section class="editor-pane" id="editorPane">
+          <!-- Editor -->
+          <div class="editor" id="editor" hidden>
+            <div class="editor-head">
+              <div class="file-title">
+                <span class="file-title-text" id="fileName">—</span>
+                <span class="dirty" id="dirtyBadge" hidden>未保存</span>
+              </div>
+              <div class="editor-actions">
+                <button class="btn ghost danger-ghost" id="btnDelete" type="button" title="删除此配置文件">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 7h16M10 4h4M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+                    <path d="M10 11v6M14 11v6" />
+                  </svg>
+                  <span class="btn-text">删除</span>
+                </button>
+                <button class="btn primary" id="btnSave" type="button" disabled>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 4h11l3 3v13H5z" />
+                    <path d="M8 4v6h8V4M8 20v-6h8v6" />
+                  </svg>
+                  <span class="btn-text">保存</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="editor-body">
+              <div class="gutter" aria-hidden="true"><div class="gutter-inner" id="gutterInner"></div></div>
+              <div class="code-area">
+                <pre class="code-highlight" id="highlight" aria-hidden="true"></pre>
+                <textarea
+                  class="code-input"
+                  id="code"
+                  wrap="off"
+                  spellcheck="false"
+                  autocapitalize="off"
+                  autocomplete="off"
+                  autocorrect="off"
+                  aria-label="配置文件内容"
+                ></textarea>
+              </div>
+              <div class="editor-loading" id="editorLoading" hidden>
+                <span class="spinner"></span>
+                <span>载入配置…</span>
+              </div>
+            </div>
+
+            <div class="editor-foot">
+              <span id="cursorInfo">行 1, 列 1</span>
+              <span id="statInfo">0 行 · 0 B</span>
+              <span class="hint"><kbd>Ctrl</kbd><kbd>S</kbd> 保存</span>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div class="empty" id="emptyState">
+            <div class="empty-art" aria-hidden="true">
+              <span class="ea-prompt">conf.d</span>
+              <span class="ea-sigil">❯</span>
+              <span class="ea-cmd">open &lt;config&gt;</span>
+              <span class="ea-caret"></span>
+            </div>
+            <h2>还没有打开配置文件</h2>
+            <p>从左侧列表选择一个 .conf 文件进行编辑，或新建一个站点配置。</p>
+            <button class="btn primary-soft" id="btnNewEmpty" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              新建配置
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="scrim" id="scrim"></div>
+
+    <!-- Toast host -->
+    <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+    <!-- Modal -->
+    <div class="modal-layer" id="modalLayer" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalMessage">
+        <h2 id="modalTitle">标题</h2>
+        <p id="modalMessage"></p>
+        <input class="modal-input" id="modalInput" type="text" hidden />
+        <div class="modal-hint" id="modalHint"></div>
+        <div class="modal-actions">
+          <button class="btn ghost" id="modalCancel" type="button">取消</button>
+          <button class="btn primary" id="modalConfirm" type="button">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <noscript>
+      <div style="padding: 24px; font-family: sans-serif">该页面需要启用 JavaScript。</div>
+    </noscript>
+
+    <script>
+      (function () {
+        "use strict";
+
+        /* ============================ 状态 ============================ */
+        var state = {
+          files: [],
+          filter: "",
+          listStatus: "loading", // loading | ready | error
+          listError: "",
+          active: null,
+          content: "",
+          savedContent: "",
+          dirty: false,
+          editorLoading: false,
+          status: { known: false, running: false, pid: null },
+          busy: null, // start | stop | reload | save | delete
+        };
+
+        var FILE_TEMPLATE = [
+          "server {",
+          "    listen       8080;",
+          "    server_name  example.local;",
+          "",
+          "    location / {",
+          "        root   html;",
+          "        index  index.html index.htm;",
+          "    }",
+          "}",
+          "",
+        ].join("\n");
+
+        /* ============================ 元素 ============================ */
+        function $(id) {
+          return document.getElementById(id);
+        }
+
+        var els = {
+          app: $("app"),
+          statusPill: $("statusPill"),
+          statusText: $("statusText"),
+          btnStart: $("btnStart"),
+          btnStop: $("btnStop"),
+          btnReload: $("btnReload"),
+          btnMenu: $("btnMenu"),
+          scrim: $("scrim"),
+          banner: $("banner"),
+          bannerText: $("bannerText"),
+          bannerRetry: $("bannerRetry"),
+          sidebar: $("sidebar"),
+          search: $("search"),
+          btnRefresh: $("btnRefresh"),
+          btnNew: $("btnNew"),
+          fileList: $("fileList"),
+          fileCount: $("fileCount"),
+          emptyState: $("emptyState"),
+          editor: $("editor"),
+          fileName: $("fileName"),
+          dirtyBadge: $("dirtyBadge"),
+          btnDelete: $("btnDelete"),
+          btnSave: $("btnSave"),
+          code: $("code"),
+          highlight: $("highlight"),
+          gutter: document.querySelector(".gutter"),
+          gutterInner: $("gutterInner"),
+          editorLoading: $("editorLoading"),
+          cursorInfo: $("cursorInfo"),
+          statInfo: $("statInfo"),
+          toasts: $("toasts"),
+          modalLayer: $("modalLayer"),
+          modal: document.querySelector(".modal"),
+          modalTitle: $("modalTitle"),
+          modalMessage: $("modalMessage"),
+          modalInput: $("modalInput"),
+          modalHint: $("modalHint"),
+          modalCancel: $("modalCancel"),
+          modalConfirm: $("modalConfirm"),
+          btnNewEmpty: $("btnNewEmpty"),
+        };
+
+        /* ============================ 工具 ============================ */
+        function escapeHtml(str) {
+          return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+        }
+
+        function formatBytes(n) {
+          if (typeof n !== "number" || !isFinite(n)) return "—";
+          if (n < 1024) return n + " B";
+          if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+          return (n / 1024 / 1024).toFixed(1) + " MB";
+        }
+
+        function toDate(value) {
+          if (value === null || value === undefined || value === "") return null;
+          if (typeof value === "number") {
+            return new Date(value < 1e12 ? value * 1000 : value);
+          }
+          var d = new Date(value);
+          return isNaN(d.getTime()) ? null : d;
+        }
+
+        function formatTime(value) {
+          var d = toDate(value);
+          if (!d) return "";
+          var diff = Date.now() - d.getTime();
+          if (diff < 60 * 1000) return "刚刚";
+          if (diff < 60 * 60 * 1000) return Math.floor(diff / 60000) + " 分钟前";
+          if (diff < 24 * 60 * 60 * 1000) return Math.floor(diff / 3600000) + " 小时前";
+          if (diff < 7 * 24 * 60 * 60 * 1000) return Math.floor(diff / 86400000) + " 天前";
+          function pad(v) {
+            return String(v).padStart(2, "0");
+          }
+          return (
+            d.getFullYear() +
+            "-" +
+            pad(d.getMonth() + 1) +
+            "-" +
+            pad(d.getDate()) +
+            " " +
+            pad(d.getHours()) +
+            ":" +
+            pad(d.getMinutes())
+          );
+        }
+
+        function byteLength(str) {
+          try {
+            return new TextEncoder().encode(str).length;
+          } catch (e) {
+            return str.length;
+          }
+        }
+
+        function sleep(ms) {
+          return new Promise(function (resolve) {
+            setTimeout(resolve, ms);
+          });
+        }
+
+        /* ============================ 请求层 ============================ */
+        function request(path, options) {
+          options = options || {};
+          var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+          var timer = setTimeout(function () {
+            if (controller) controller.abort();
+          }, 20000);
+
+          var init = {
+            method: options.method || "GET",
+            credentials: "same-origin",
+            headers: {},
+            signal: controller ? controller.signal : undefined,
+          };
+          if (options.body !== undefined) {
+            init.headers["Content-Type"] = "application/json";
+            init.body = JSON.stringify(options.body);
+          }
+
+          return fetch(path, init)
+            .then(function (res) {
+              if (res.status === 204) return null;
+              return res.text().then(function (text) {
+                var data = null;
+                if (text) {
+                  try {
+                    data = JSON.parse(text);
+                  } catch (e) {
+                    data = text;
+                  }
+                }
+                if (!res.ok) {
+                  var msg =
+                    (data && typeof data === "object" && (data.message || data.error || data.msg)) ||
+                    (typeof data === "string" && data.trim() && data.trim().slice(0, 200)) ||
+                    "请求失败（HTTP " + res.status + "）";
+                  if (res.status === 404) {
+                    msg = "接口未实现：" + (options.method || "GET") + " " + path;
+                  }
+                  var err = new Error(msg);
+                  err.status = res.status;
+                  throw err;
+                }
+                return data;
+              });
+            })
+            .catch(function (err) {
+              clearTimeout(timer);
+              if (err && err.name === "AbortError") {
+                throw new Error("请求超时，请确认服务是否正常运行");
+              }
+              if (err instanceof TypeError) {
+                throw new Error("无法连接后端服务");
+              }
+              throw err;
+            })
+            .then(function (data) {
+              clearTimeout(timer);
+              return data;
+            });
+        }
+
+        var API = {
+          status: function () {
+            return request("/api/status");
+          },
+          start: function () {
+            return request("/api/start", { method: "POST" });
+          },
+          stop: function () {
+            return request("/api/stop", { method: "POST" });
+          },
+          reload: function () {
+            return request("/api/reload", { method: "POST" });
+          },
+          list: function () {
+            return request("/api/configs");
+          },
+          read: function (name) {
+            return request("/api/configs/" + encodeURIComponent(name));
+          },
+          write: function (name, content) {
+            return request("/api/configs/" + encodeURIComponent(name), {
+              method: "PUT",
+              body: { content: content },
+            });
+          },
+          remove: function (name) {
+            return request("/api/configs/" + encodeURIComponent(name), { method: "DELETE" });
+          },
+        };
+
+        /* ============================ 响应归一化 ============================ */
+        function normalizeList(payload) {
+          var arr = payload;
+          if (!Array.isArray(arr) && payload && typeof payload === "object") {
+            arr = payload.files || payload.data || payload.list || payload.items;
+          }
+          if (!Array.isArray(arr)) return [];
+          var out = [];
+          arr.forEach(function (item) {
+            var obj = typeof item === "string" ? { name: item } : item || {};
+            var name = obj.name || obj.file || obj.filename || obj.path;
+            if (!name) return;
+            name = String(name).split("/").pop();
+            out.push({
+              name: name,
+              size: typeof obj.size === "number" ? obj.size : undefined,
+              mtime: obj.mtime || obj.modified || obj.updatedAt || obj.mtimeMs,
+            });
+          });
+          out.sort(function (a, b) {
+            return a.name.localeCompare(b.name);
+          });
+          return out;
+        }
+
+        function normalizeContent(payload) {
+          if (typeof payload === "string") return payload;
+          if (payload && typeof payload === "object") {
+            if (typeof payload.content === "string") return payload.content;
+            if (typeof payload.data === "string") return payload.data;
+            if (typeof payload.text === "string") return payload.text;
+          }
+          return "";
+        }
+
+        function normalizeStatus(payload) {
+          var p = payload && typeof payload === "object" ? payload : {};
+          var running = null;
+          if (typeof p.running === "boolean") running = p.running;
+          else if (typeof p.active === "boolean") running = p.active;
+          else if (typeof p.status === "string") {
+            running = ["running", "active", "started", "online"].indexOf(p.status.toLowerCase()) > -1;
+          }
+          var pid = p.pid || p.pidfile || null;
+          return { known: running !== null, running: running === true, pid: pid };
+        }
+
+        /* ============================ Toast ============================ */
+        function toast(message, type) {
+          var node = document.createElement("div");
+          node.className = "toast" + (type ? " " + type : "");
+          node.textContent = message;
+          els.toasts.appendChild(node);
+          var removeTimer = setTimeout(close, 3600);
+          function close() {
+            clearTimeout(removeTimer);
+            node.classList.add("is-out");
+            setTimeout(function () {
+              if (node.parentNode) node.parentNode.removeChild(node);
+            }, 200);
+          }
+          node.addEventListener("click", close);
+        }
+
+        /* ============================ 弹窗 ============================ */
+        var dialogResolve = null;
+
+        function openDialog(options) {
+          return new Promise(function (resolve) {
+            dialogResolve = resolve;
+            els.modalTitle.textContent = options.title || "确认";
+            els.modalMessage.textContent = options.message || "";
+            els.modalMessage.hidden = !options.message;
+
+            var hasInput = !!options.input;
+            els.modalInput.hidden = !hasInput;
+            els.modalInput.value = hasInput ? options.input.value || "" : "";
+            els.modalInput.placeholder = hasInput ? options.input.placeholder || "" : "";
+            els.modalHint.textContent = options.hint || "";
+            els.modalHint.classList.toggle("is-error", false);
+
+            els.modalCancel.textContent = options.cancelText || "取消";
+            els.modalConfirm.textContent = options.confirmText || "确定";
+            els.modalConfirm.className = "btn " + (options.danger ? "danger" : "primary");
+
+            els.modalLayer.hidden = false;
+            setTimeout(function () {
+              if (hasInput) {
+                els.modalInput.focus();
+                var dot = els.modalInput.value.lastIndexOf(".");
+                if (dot > 0 && els.modalInput.setSelectionRange) {
+                  els.modalInput.setSelectionRange(0, dot);
+                } else if (els.modalInput.select) {
+                  els.modalInput.select();
+                }
+              } else {
+                els.modalConfirm.focus();
+              }
+            }, 30);
+          });
+        }
+
+        function closeDialog(ok, value) {
+          els.modalLayer.hidden = true;
+          var resolve = dialogResolve;
+          dialogResolve = null;
+          if (resolve) resolve({ ok: ok, value: value });
+        }
+
+        function setDialogError(msg) {
+          els.modalHint.textContent = msg;
+          els.modalHint.classList.toggle("is-error", !!msg);
+        }
+
+        els.modalCancel.addEventListener("click", function () {
+          closeDialog(false);
+        });
+
+        els.modalConfirm.addEventListener("click", function () {
+          closeDialog(true, els.modalInput.hidden ? null : els.modalInput.value);
+        });
+
+        els.modalLayer.addEventListener("click", function (event) {
+          if (event.target === els.modalLayer) closeDialog(false);
+        });
+
+        els.modalInput.addEventListener("input", function () {
+          if (els.modalHint.classList.contains("is-error")) setDialogError("");
+        });
+
+        els.modalInput.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            closeDialog(true, els.modalInput.value);
+          }
+        });
+
+        /* ============================ 状态渲染 ============================ */
+        function setBusy(which) {
+          state.busy = which;
+          renderStatus();
+        }
+
+        function renderStatus() {
+          var s = state.status;
+          var busy = state.busy;
+
+          els.statusPill.innerHTML = "";
+          var dot = document.createElement("span");
+          var text = document.createElement("span");
+          text.id = "statusText";
+
+          if (!s.known) {
+            dot.className = "dot dot-unknown";
+            text.textContent = state.listStatus === "error" ? "服务不可达" : "状态未知";
+          } else if (s.running) {
+            dot.className = "dot dot-run";
+            text.textContent = "运行中";
+            var sub = document.createElement("span");
+            sub.className = "pill-sub";
+            sub.textContent = s.pid ? "PID " + s.pid : "";
+            els.statusPill.appendChild(dot);
+            els.statusPill.appendChild(text);
+            if (s.pid) els.statusPill.appendChild(sub);
+            return finishButtons();
+          } else {
+            dot.className = "dot dot-stop";
+            text.textContent = "已停止";
+          }
+
+          els.statusPill.appendChild(dot);
+          els.statusPill.appendChild(text);
+          finishButtons();
+
+          function finishButtons() {
+            var isRunning = s.known && s.running;
+            els.btnStart.disabled = !!busy || isRunning;
+            els.btnStop.disabled = !!busy || !isRunning;
+            els.btnReload.disabled = !!busy || !isRunning;
+            els.btnStart.classList.toggle("is-busy", busy === "start");
+            els.btnStop.classList.toggle("is-busy", busy === "stop");
+            els.btnReload.classList.toggle("is-busy", busy === "reload");
+          }
+        }
+
+        function refreshStatus(silent) {
+          return API.status()
+            .then(function (data) {
+              state.status = normalizeStatus(data);
+              if (state.listStatus === "error") hideBanner();
+            })
+            .catch(function (err) {
+              state.status = { known: false, running: false, pid: null };
+              if (!silent) toast(err.message, "error");
+              if (state.listStatus === "error") {
+                showBanner("无法连接到后端服务：" + err.message);
+              }
+            })
+            .then(function () {
+              renderStatus();
+            });
+        }
+
+        function showBanner(message) {
+          els.bannerText.textContent = message;
+          els.banner.hidden = false;
+        }
+
+        function hideBanner() {
+          els.banner.hidden = true;
+        }
+
+        /* ============================ 文件列表 ============================ */
+        function renderListNote(title, desc, actionText, action) {
+          var box = document.createElement("div");
+          box.className = "list-note";
+          var strong = document.createElement("strong");
+          strong.textContent = title;
+          box.appendChild(strong);
+          if (desc) {
+            var span = document.createElement("span");
+            span.textContent = desc;
+            box.appendChild(span);
+          }
+          if (actionText && action) {
+            var btn = document.createElement("div");
+            btn.style.marginTop = "10px";
+            var b = document.createElement("button");
+            b.type = "button";
+            b.className = "btn ghost";
+            b.style.height = "30px";
+            b.style.fontSize = "12.5px";
+            b.textContent = actionText;
+            b.addEventListener("click", action);
+            btn.appendChild(b);
+            box.appendChild(btn);
+          }
+          els.fileList.appendChild(box);
+        }
+
+        function renderFiles() {
+          els.fileList.innerHTML = "";
+
+          if (state.listStatus === "loading" && state.files.length === 0) {
+            for (var i = 0; i < 5; i++) {
+              var sk = document.createElement("div");
+              sk.className = "skeleton-row";
+              els.fileList.appendChild(sk);
+            }
+            els.fileCount.textContent = "载入中…";
+            return;
+          }
+
+          if (state.listStatus === "error" && state.files.length === 0) {
+            renderListNote("列表加载失败", state.listError, "重新加载", function () {
+              loadFiles({ autoSelect: true });
+            });
+            els.fileCount.textContent = "—";
+            return;
+          }
+
+          var q = state.filter.trim().toLowerCase();
+          var visible = state.files.filter(function (f) {
+            return !q || f.name.toLowerCase().indexOf(q) > -1;
+          });
+
+          if (visible.length === 0) {
+            if (state.files.length === 0) {
+              renderListNote("暂无配置文件", "conf.d 目录下还没有 .conf 文件", "新建配置", createFile);
+            } else {
+              renderListNote("没有匹配结果", "调整搜索关键词试试", null, null);
+            }
+          }
+
+          visible.forEach(function (file) {
+            var item = document.createElement("button");
+            item.type = "button";
+            item.className = "file-item";
+            if (file.name === state.active) item.setAttribute("aria-current", "true");
+
+            var icon = document.createElement("span");
+            icon.className = "file-icon";
+            icon.innerHTML =
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+              '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>' +
+              '<path d="M14 3v5h5"/></svg>';
+
+            var textBox = document.createElement("span");
+            textBox.className = "file-text";
+
+            var nameEl = document.createElement("span");
+            nameEl.className = "file-name";
+            nameEl.textContent = file.name;
+
+            var subEl = document.createElement("span");
+            subEl.className = "file-sub";
+            var parts = [];
+            if (file.size !== undefined) parts.push(formatBytes(file.size));
+            var timeText = formatTime(file.mtime);
+            if (timeText) parts.push(timeText);
+            subEl.textContent = parts.length ? parts.join(" · ") : "配置文件";
+
+            textBox.appendChild(nameEl);
+            textBox.appendChild(subEl);
+            item.appendChild(icon);
+            item.appendChild(textBox);
+
+            item.addEventListener("click", function () {
+              openFile(file.name);
+              closeNav();
+            });
+
+            els.fileList.appendChild(item);
+          });
+
+          els.fileCount.textContent =
+            (q ? visible.length + " / " + state.files.length : state.files.length) + " 个文件";
+        }
+
+        function loadFiles(options) {
+          options = options || {};
+          if (state.listStatus !== "ready") {
+            state.listStatus = "loading";
+            renderFiles();
+          }
+          return API.list()
+            .then(function (data) {
+              state.files = normalizeList(data);
+              state.listStatus = "ready";
+              state.listError = "";
+              hideBanner();
+              renderFiles();
+              if (options.autoSelect && !state.active && state.files.length > 0) {
+                openFile(state.files[0].name);
+              }
+            })
+            .catch(function (err) {
+              state.listStatus = "error";
+              state.listError = err.message;
+              renderFiles();
+              showBanner("无法读取配置列表：" + err.message);
+            });
+        }
+
+        /* ============================ 编辑器 ============================ */
+        var NGINX_KEYWORDS =
+          "http|events|stream|server_name|server|location|listen|root|alias|index|proxy_pass|proxy_set_header|proxy_redirect|proxy_http_version|proxy_buffering|include|return|rewrite|try_files|error_page|access_log|error_log|log_format|worker_processes|worker_connections|pid|client_max_body_size|client_body_timeout|client_header_timeout|gzip|gzip_types|gzip_min_length|gzip_comp_level|sendfile|tcp_nopush|tcp_nodelay|keepalive_timeout|default_type|charset|add_header|set|types|if|map|upstream|ssl_certificate|ssl_certificate_key|ssl_protocols|ssl_ciphers|ssl_session_cache|ssl_session_timeout|ssl_prefer_server_ciphers|expires|fastcgi_pass|fastcgi_param|fastcgi_index|limit_req|limit_req_zone|limit_conn|auth_basic|auth_basic_user_file|deny|allow|internal|autoindex|resolver|real_ip_header|ssl|http2";
+
+        var TOKEN_RE = new RegExp(
+          "(#[^\\n]*)" +
+            '|("(?:[^"\\\\\\n]|\\\\.)*"|\'(?:[^\'\\\\\\n]|\\\\.)*\')' +
+            "|(\\b(?:" + NGINX_KEYWORDS + ")\\b)" +
+            "|(\\$[A-Za-z_][A-Za-z0-9_]*)" +
+            "|(\\b\\d+(?:\\.\\d+)?(?:[kKmMgG])?\\b)" +
+            "|([{};])",
+          "g"
+        );
+
+        function highlightSource(code) {
+          var escaped = escapeHtml(code);
+          return escaped.replace(TOKEN_RE, function (match, comment, str, keyword, variable, num, punct) {
+            if (comment) return '<span class="tok-comment">' + comment + "</span>";
+            if (str) return '<span class="tok-string">' + str + "</span>";
+            if (keyword) return '<span class="tok-key">' + keyword + "</span>";
+            if (variable) return '<span class="tok-var">' + variable + "</span>";
+            if (num) return '<span class="tok-num">' + num + "</span>";
+            if (punct) return '<span class="tok-punct">' + punct + "</span>";
+            return match;
+          });
+        }
+
+        function renderCode(code) {
+          var lines = code.split("\n");
+
+          var gutterHtml = "";
+          for (var i = 0; i < lines.length; i++) {
+            gutterHtml += "<span>" + (i + 1) + "</span>";
+          }
+          els.gutterInner.innerHTML = gutterHtml;
+          els.gutter.style.width = Math.max(2, String(lines.length).length) * 8 + 40 + "px";
+
+          els.highlight.innerHTML = highlightSource(code) + "\n";
+
+          els.statInfo.textContent = lines.length + " 行 · " + formatBytes(byteLength(code));
+          syncScroll();
+          updateCursor();
+        }
+
+        function syncScroll() {
+          els.highlight.scrollTop = els.code.scrollTop;
+          els.highlight.scrollLeft = els.code.scrollLeft;
+          els.gutterInner.style.transform = "translateY(" + -els.code.scrollTop + "px)";
+        }
+
+        function updateCursor() {
+          var value = els.code.value;
+          var pos = els.code.selectionStart || 0;
+          var before = value.slice(0, pos);
+          var line = before.split("\n").length;
+          var col = pos - before.lastIndexOf("\n");
+          els.cursorInfo.textContent = "行 " + line + ", 列 " + col;
+
+          var spans = els.gutterInner.children;
+          for (var i = 0; i < spans.length; i++) {
+            spans[i].classList.toggle("is-active", i === line - 1);
+          }
+        }
+
+        function updateChrome() {
+          els.dirtyBadge.hidden = !state.dirty;
+          els.btnSave.disabled = !state.dirty || state.busy === "save";
+          els.btnSave.classList.toggle("is-busy", state.busy === "save");
+          els.btnDelete.disabled = !!state.busy || state.editorLoading;
+        }
+
+        function showEditorFor(name) {
+          els.emptyState.hidden = true;
+          els.editor.hidden = false;
+          els.fileName.textContent = name;
+          els.fileName.title = name;
+        }
+
+        function showEmptyState() {
+          els.editor.hidden = true;
+          els.emptyState.hidden = false;
+        }
+
+        function openFile(name) {
+          if (name === state.active && !state.editorLoading) return;
+
+          var proceed = function () {
+            state.active = name;
+            state.editorLoading = true;
+            state.content = "";
+            state.savedContent = "";
+            state.dirty = false;
+
+            showEditorFor(name);
+            els.editorLoading.hidden = false;
+            els.code.value = "";
+            els.gutterInner.innerHTML = "";
+            els.highlight.innerHTML = "";
+            els.statInfo.textContent = "载入中…";
+            els.cursorInfo.textContent = "行 1, 列 1";
+            els.btnSave.disabled = true;
+            els.btnDelete.disabled = true;
+            els.dirtyBadge.hidden = true;
+            renderFiles();
+
+            API.read(name)
+              .then(function (data) {
+                var content = normalizeContent(data);
+                state.content = content;
+                state.savedContent = content;
+                state.dirty = false;
+                state.editorLoading = false;
+
+                els.code.value = content;
+                els.code.scrollTop = 0;
+                els.code.scrollLeft = 0;
+                renderCode(content);
+                els.editorLoading.hidden = true;
+                updateChrome();
+
+                if (window.matchMedia && window.matchMedia("(min-width: 881px)").matches) {
+                  els.code.focus();
+                  els.code.setSelectionRange(0, 0);
+                  updateCursor();
+                }
+              })
+              .catch(function (err) {
+                state.editorLoading = false;
+                state.active = null;
+                showEmptyState();
+                renderFiles();
+                toast("读取 " + name + " 失败：" + err.message, "error");
+              });
+          };
+
+          if (state.dirty) {
+            confirmDiscard().then(function (ok) {
+              if (ok) proceed();
+            });
+          } else {
+            proceed();
+          }
+        }
+
+        function confirmDiscard() {
+          return openDialog({
+            title: "放弃未保存的改动？",
+            message:
+              "“" + (state.active || "") + "” 还有未保存的修改，切换文件后这些改动将会丢失。",
+            confirmText: "放弃改动",
+            cancelText: "继续编辑",
+            danger: true,
+          }).then(function (res) {
+            return res.ok;
+          });
+        }
+
+        function updateFromInput() {
+          state.content = els.code.value;
+          state.dirty = state.content !== state.savedContent;
+          renderCode(state.content);
+          updateChrome();
+        }
+
+        function insertText(text) {
+          var ta = els.code;
+          var start = ta.selectionStart;
+          var end = ta.selectionEnd;
+          ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
+          ta.selectionStart = ta.selectionEnd = start + text.length;
+          updateFromInput();
+        }
+
+        function saveFile() {
+          if (!state.active || !state.dirty || state.busy) return;
+          var name = state.active;
+          var content = state.content;
+          setBusy("save");
+          updateChrome();
+
+          API.write(name, content)
+            .then(function () {
+              state.savedContent = content;
+              state.dirty = false;
+              toast(name + " 已保存", "success");
+              return loadFiles();
+            })
+            .catch(function (err) {
+              toast("保存失败：" + err.message, "error");
+            })
+            .then(function () {
+              setBusy(null);
+              updateChrome();
+            });
+        }
+
+        function deleteFile() {
+          if (!state.active || state.busy) return;
+          var name = state.active;
+          openDialog({
+            title: "删除配置文件",
+            message: "确定要删除 “" + name + "” 吗？此操作不可恢复。",
+            confirmText: "删除",
+            danger: true,
+          }).then(function (res) {
+            if (!res.ok) return;
+            setBusy("delete");
+            updateChrome();
+            API.remove(name)
+              .then(function () {
+                toast(name + " 已删除", "success");
+                state.active = null;
+                state.content = "";
+                state.savedContent = "";
+                state.dirty = false;
+                showEmptyState();
+                return loadFiles();
+              })
+              .then(function () {
+                if (state.files.length > 0) openFile(state.files[0].name);
+              })
+              .catch(function (err) {
+                toast("删除失败：" + err.message, "error");
+              })
+              .then(function () {
+                setBusy(null);
+                updateChrome();
+              });
+          });
+        }
+
+        function createFile() {
+          openDialog({
+            title: "新建配置文件",
+            message: "文件将保存到 conf.d 目录，文件名需以 .conf 结尾。",
+            input: { value: "new-site.conf", placeholder: "example.conf" },
+            hint: "允许字母、数字、点、下划线和短横线",
+            confirmText: "创建",
+          }).then(function (res) {
+            if (!res.ok) return;
+            var name = (res.value || "").trim();
+            if (!name) {
+              toast("请输入文件名", "error");
+              return;
+            }
+            if (/[\\/]/.test(name)) {
+              toast("文件名不能包含路径分隔符", "error");
+              return;
+            }
+            if (!/^[A-Za-z0-9_][A-Za-z0-9._-]*$/.test(name) || name.indexOf("..") !== -1) {
+              toast("文件名需以字母、数字或下划线开头，且不能包含“..”", "error");
+              return;
+            }
+            if (!/\.conf$/i.test(name)) name += ".conf";
+            var exists = state.files.some(function (f) {
+              return f.name === name;
+            });
+            if (exists) {
+              toast(name + " 已存在", "error");
+              return;
+            }
+            setBusy("save");
+            API.write(name, FILE_TEMPLATE)
+              .then(function () {
+                toast(name + " 已创建", "success");
+                return loadFiles();
+              })
+              .then(function () {
+                return openFile(name);
+              })
+              .catch(function (err) {
+                toast("创建失败：" + err.message, "error");
+              })
+              .then(function () {
+                setBusy(null);
+              });
+          });
+        }
+
+        /* ============================ 电源操作 ============================ */
+        function powerAction(kind) {
+          if (state.busy) return;
+          setBusy(kind);
+          var label = kind === "start" ? "启动" : kind === "stop" ? "停止" : "重载";
+          API[kind]()
+            .then(function () {
+              toast("Nginx " + label + "指令已执行", "success");
+              return sleep(350).then(function () {
+                return refreshStatus(true);
+              });
+            })
+            .catch(function (err) {
+              toast("执行" + label + "失败：" + err.message, "error");
+              return refreshStatus(true);
+            })
+            .then(function () {
+              setBusy(null);
+            });
+        }
+
+        /* ============================ 移动端侧栏 ============================ */
+        function openNav() {
+          els.app.classList.add("nav-open");
+        }
+
+        function closeNav() {
+          els.app.classList.remove("nav-open");
+        }
+
+        /* ============================ 事件绑定 ============================ */
+        els.btnStart.addEventListener("click", function () {
+          powerAction("start");
+        });
+        els.btnStop.addEventListener("click", function () {
+          powerAction("stop");
+        });
+        els.btnReload.addEventListener("click", function () {
+          powerAction("reload");
+        });
+
+        els.btnSave.addEventListener("click", saveFile);
+        els.btnDelete.addEventListener("click", deleteFile);
+        els.btnNew.addEventListener("click", createFile);
+        els.btnNewEmpty.addEventListener("click", createFile);
+
+        els.btnRefresh.addEventListener("click", function () {
+          loadFiles();
+        });
+
+        els.bannerRetry.addEventListener("click", function () {
+          hideBanner();
+          loadFiles({ autoSelect: true });
+          refreshStatus(false);
+        });
+
+        els.search.addEventListener("input", function () {
+          state.filter = els.search.value;
+          renderFiles();
+        });
+
+        els.code.addEventListener("input", updateFromInput);
+        els.code.addEventListener("scroll", syncScroll);
+        els.code.addEventListener("click", updateCursor);
+        els.code.addEventListener("keyup", updateCursor);
+        els.code.addEventListener("select", updateCursor);
+
+        els.code.addEventListener("keydown", function (event) {
+          var meta = event.ctrlKey || event.metaKey;
+
+          if (meta && (event.key === "s" || event.key === "S")) {
+            event.preventDefault();
+            saveFile();
+            return;
+          }
+
+          if (event.key === "Tab") {
+            event.preventDefault();
+            insertText("    ");
+            return;
+          }
+
+          if (event.key === "Enter") {
+            var ta = els.code;
+            if (ta.selectionStart !== ta.selectionEnd) return;
+            var before = ta.value.slice(0, ta.selectionStart);
+            var lineStart = before.lastIndexOf("\n") + 1;
+            var indentMatch = before.slice(lineStart).match(/^[ \t]*/);
+            var indent = indentMatch ? indentMatch[0] : "";
+            if (indent) {
+              event.preventDefault();
+              insertText("\n" + indent);
+            }
+          }
+        });
+
+        els.btnMenu.addEventListener("click", function () {
+          if (els.app.classList.contains("nav-open")) closeNav();
+          else openNav();
+        });
+
+        els.scrim.addEventListener("click", closeNav);
+
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            if (!els.modalLayer.hidden) {
+              closeDialog(false);
+            } else {
+              closeNav();
+            }
+          }
+        });
+
+        window.addEventListener("beforeunload", function (event) {
+          if (state.dirty) {
+            event.preventDefault();
+            event.returnValue = "";
+          }
+        });
+
+        document.addEventListener("visibilitychange", function () {
+          if (!document.hidden) refreshStatus(true);
+        });
+
+        /* ============================ 启动 ============================ */
+        renderStatus();
+        renderFiles();
+        loadFiles({ autoSelect: true });
+        refreshStatus(true);
+
+        setInterval(function () {
+          if (!document.hidden && !state.busy) refreshStatus(true);
+        }, 6000);
+      })();
+    </script>
+
+    <!--
+      后端接口契约（在 app/server/routes 中实现，conf.d 目录自行解析）
+      ------------------------------------------------------------------
+      GET    /api/status                  → { running: boolean, pid?: number }
+      POST   /api/start                   → { ok: true }
+      POST   /api/stop                    → { ok: true }
+      POST   /api/reload                  → { ok: true }
+      GET    /api/configs                 → { files: [{ name, size, mtime }] }
+      GET    /api/configs/:name           → { content: "..." }
+      PUT    /api/configs/:name           body { content } → { ok: true }   // 新建或覆盖
+      DELETE /api/configs/:name           → { ok: true }
+
+      说明：
+      - 出错时返回非 2xx 且 body 为 { message: "错误描述" }，前端会直接展示。
+      - mtime 支持 ISO 字符串或时间戳（秒/毫秒）。
+      - 文件名由前端校验为 [A-Za-z0-9_][A-Za-z0-9._-]* 且以 .conf 结尾，但后端仍需校验并
+        防止路径穿越（path.basename + 白名单）。
+    -->
+  </body>
+</html>

@@ -9,10 +9,13 @@ const NGINX_P = path.resolve(NGINX, "../../")
 
 const NGINX_C = path.resolve(NGINX, "../../", "conf/nginx.conf")
 
+const NGINX_D = path.resolve(NGINX, "../../", "conf.d/")
+
 module.exports = {
     DATA_BASE,
     PORT,
     NGINX,
     NGINX_P,
-    NGINX_C
+    NGINX_C,
+    NGINX_D
 }
