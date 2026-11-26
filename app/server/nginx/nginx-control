@@ -1,0 +1,45 @@
+#!/bin/bash
+set -e
+
+NGINX="$TRIM_APPDEST/app/server/nginx/sbin/nginx"
+
+CONF_DIR="$TRIM_PKGETC/nginx"
+RUNTIME_DIR="$TRIM_PKGVAR/nginx"
+
+case "$1" in
+    start)
+        mkdir -p "$RUNTIME_DIR/logs" "$RUNTIME_DIR/run" "$CONF_DIR/conf.d"
+
+        "$NGINX" \
+            -p "$RUNTIME_DIR/" \
+            -c "$CONF_DIR/nginx.conf"
+        ;;
+
+    stop)
+        if [ -s "$RUNTIME_DIR/run/nginx.pid" ]; then
+            "$NGINX" \
+                -p "$RUNTIME_DIR/" \
+                -c "$CONF_DIR/nginx.conf" \
+                -s quit
+        fi
+        ;;
+
+    reload)
+        "$NGINX" \
+            -p "$RUNTIME_DIR/" \
+            -c "$CONF_DIR/nginx.conf" \
+            -s reload
+        ;;
+
+    test)
+        "$NGINX" \
+            -p "$RUNTIME_DIR/" \
+            -c "$CONF_DIR/nginx.conf" \
+            -t
+        ;;
+
+    *)
+        echo "Usage: $0 {start|stop|reload|test}"
+        exit 1
+        ;;
+esac

@@ -1,0 +1,2 @@
+127.0.0.1 - - [26/Nov/2026:09:47:29 +0800] "GET / HTTP/1.1" 200 612 "http://192.168.31.202:8080/?folder=/opt/nginx-demo" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36"
+127.0.0.1 - - [26/Nov/2026:09:47:36 +0800] "GET / HTTP/1.1" 200 612 "http://192.168.31.202:8080/?folder=/opt/nginx-demo" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36"

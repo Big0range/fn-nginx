@@ -1,0 +1,12 @@
+{
+  "data-share": {
+    "shares": [
+      {
+        "name": "nginx-demo"
+      },
+      {
+        "name": "nginx-demo/data"
+      }
+    ]
+  }
+}
