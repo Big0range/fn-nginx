@@ -6,7 +6,14 @@ var nginx = require('../utils/nginx');
 
 var router = express.Router();
 
+// 接口数据都要求实时，禁用缓存避免 304 空响应
+router.use(function (req, res, next) {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
 var CONF_DIR = config.NGINX_D;
+var MAIN_CONF = config.NGINX_C;
 
 var NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,120}\.conf$/i;
 
@@ -28,6 +35,16 @@ function notFound(name) {
 
 function isConf(name) {
   return name.charAt(0) !== '.' && /\.conf$/i.test(name);
+}
+
+// 只接受字符串 content，避免请求体异常时把文件清空
+function readContent(req) {
+  if (!req.body || typeof req.body.content !== 'string') {
+    var err = new Error('请求体缺少 content 字段');
+    err.status = 400;
+    throw err;
+  }
+  return req.body.content;
 }
 
 function wrap(fn) {
@@ -66,7 +83,50 @@ router.get(
       return a.name.localeCompare(b.name);
     });
 
-    res.json({ files: files });
+    // 主配置 nginx.conf 单独返回，供页面置顶展示
+    var main = null;
+    try {
+      var mainStat = await fs.promises.stat(MAIN_CONF);
+      if (mainStat.isFile()) {
+        main = {
+          name: path.basename(MAIN_CONF),
+          size: mainStat.size,
+          mtime: mainStat.mtime.toISOString(),
+        };
+      }
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+    }
+
+    res.json({ files: files, main: main });
+  })
+);
+
+/* ------------------------------ 主配置 nginx.conf ------------------------------ */
+
+// 读取主配置（不可新建、不可删除）
+router.get(
+  '/main-config',
+  wrap(async function (req, res) {
+    var content;
+    try {
+      content = await fs.promises.readFile(MAIN_CONF, 'utf8');
+    } catch (e) {
+      if (e.code === 'ENOENT') throw notFound('nginx.conf');
+      throw e;
+    }
+    res.json({ name: path.basename(MAIN_CONF), content: content });
+  })
+);
+
+// 保存主配置
+router.put(
+  '/main-config',
+  wrap(async function (req, res) {
+    var content = readContent(req);
+    await fs.promises.mkdir(path.dirname(MAIN_CONF), { recursive: true });
+    await fs.promises.writeFile(MAIN_CONF, content, 'utf8');
+    res.json({ ok: true, name: path.basename(MAIN_CONF), size: Buffer.byteLength(content, 'utf8') });
   })
 );
 
@@ -96,7 +156,7 @@ router.put(
     var name = checkName(req.params.name);
     var dir = CONF_DIR;
     var file = path.join(dir, name);
-    var content = req.body && typeof req.body.content === 'string' ? req.body.content : '';
+    var content = readContent(req);
 
     await fs.promises.mkdir(dir, { recursive: true });
     await fs.promises.writeFile(file, content, 'utf8');
@@ -130,6 +190,28 @@ router.get(
   '/status',
   wrap(async function (req, res) {
     res.json(await nginx.status());
+  })
+);
+
+router.get(
+  '/load',
+  wrap(async function (req, res) {
+    res.json(await nginx.load());
+  })
+);
+
+router.get(
+  '/performance',
+  wrap(async function (req, res) {
+    res.json(await nginx.performance());
+  })
+);
+
+router.put(
+  '/performance',
+  wrap(async function (req, res) {
+    var values = req.body && req.body.values;
+    res.json(await nginx.updatePerformance(values));
   })
 );
 

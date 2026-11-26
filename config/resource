@@ -2,10 +2,10 @@
   "data-share": {
     "shares": [
       {
-        "name": "nginx-demo"
+        "name": "simple-nginx"
       },
       {
-        "name": "nginx-demo/data"
+        "name": "simple-nginx/data"
       }
     ]
   }

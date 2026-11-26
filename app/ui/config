@@ -1,6 +1,6 @@
 {
   ".url": {
-    "nginx-demo.Application": {
+    "simple-nginx.Application": {
       "title": "Nginx Manager",
       "icon": "images/icon_{0}.png",
       "type": "iframe",

@@ -12,6 +12,9 @@ var apiRouter = require('./routes/api');
  */
 var app = express();
 
+// 管理接口需要实时数据，关闭 ETag 以免返回 304 空响应
+app.set('etag', false);
+
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');

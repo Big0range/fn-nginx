@@ -13,8 +13,9 @@
  */
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 const { execFile } = require('child_process');
-const { NGINX, NGINX_P, NGINX_C } = require('../config');
+const { NGINX, NGINX_P, NGINX_C, NGINX_D } = require('../config');
 
 const EXEC_TIMEOUT = 15000;
 const UI_IS_WIN = process.platform === 'win32';
@@ -118,13 +119,427 @@ async function pollUntil(check, timeout, interval) {
   return !!(await check());
 }
 
+/* ------------------------------ 版本号 ------------------------------ */
+
+// 无法执行二进制时（如 Windows 开发环境）从二进制文件中提取版本字符串
+async function versionFromBinary() {
+  try {
+    const buf = await fs.promises.readFile(NGINX, 'latin1');
+    const hit = buf.match(/nginx\/(\d+\.\d+\.\d+[\w.\-]*)/i);
+    return hit ? hit[1] : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+let versionPromise = null;
+
+function getVersion() {
+  if (!versionPromise) {
+    versionPromise = run(['-v'])
+      .then(function (result) {
+        const text = String(result.stderr || '') + '\n' + String(result.stdout || '');
+        const hit = text.match(/nginx\/([\w.\-]+)/i);
+        return hit ? hit[1] : null;
+      })
+      .catch(versionFromBinary);
+  }
+  return versionPromise;
+}
+
+/* ------------------------------ 负载统计 ------------------------------ */
+
+function execCommand(cmd, args, timeout) {
+  return new Promise(function (resolve, reject) {
+    execFile(
+      cmd,
+      args,
+      { timeout: timeout || 5000, maxBuffer: 2 * 1024 * 1024, windowsHide: true },
+      function (err, stdout) {
+        if (err) reject(err);
+        else resolve(String(stdout || ''));
+      }
+    );
+  });
+}
+
+function isConfFile(name) {
+  return name.charAt(0) !== '.' && /\.conf$/i.test(name);
+}
+
+// 读取主配置 + conf.d，用于定位 stub_status 的端口与路径
+function configText() {
+  var parts = [];
+  try {
+    parts.push(fs.readFileSync(NGINX_C, 'utf8'));
+  } catch (e) {}
+  try {
+    fs.readdirSync(NGINX_D)
+      .filter(isConfFile)
+      .forEach(function (name) {
+        try {
+          parts.push(fs.readFileSync(path.join(NGINX_D, name), 'utf8'));
+        } catch (e) {}
+      });
+  } catch (e) {}
+  return parts.join('\n');
+}
+
+function stubUrls() {
+  if (process.env.NGINX_STUB_URL) return [process.env.NGINX_STUB_URL];
+
+  var text = configText();
+  if (!/\bstub_status\b/.test(text)) return [];
+
+  var stubPath = "/nginx_status";
+  var found = text.match(/location\s+(?:=\s*)?(\/[^\s{;]+)\s*\{[^}]*\bstub_status\b/);
+  if (found && /^\/[A-Za-z0-9._\-\/]+$/.test(found[1])) stubPath = found[1];
+
+  var ports = [];
+  var re = /^\s*listen\s+([^\s;]+)/gm;
+  var m;
+  while ((m = re.exec(text))) {
+    var hit = m[1].match(/(\d{1,5})\s*$/);
+    if (hit && ports.indexOf(hit[1]) === -1) ports.push(hit[1]);
+  }
+  if (!ports.length) ports.push("80");
+
+  return ports.map(function (port) {
+    return "http://127.0.0.1:" + port + stubPath;
+  });
+}
+
+function httpGet(url, timeout) {
+  return new Promise(function (resolve) {
+    var settled = false;
+    function done(value) {
+      if (!settled) {
+        settled = true;
+        resolve(value);
+      }
+    }
+    var req = http.get(url, { timeout: timeout || 1500 }, function (res) {
+      var body = "";
+      res.setEncoding("utf8");
+      res.on("data", function (chunk) {
+        body += chunk;
+      });
+      res.on("end", function () {
+        done(res.statusCode === 200 ? body : null);
+      });
+      res.on("error", function () {
+        done(null);
+      });
+    });
+    req.on("timeout", function () {
+      req.destroy();
+      done(null);
+    });
+    req.on("error", function () {
+      done(null);
+    });
+  });
+}
+
+function parseStubStatus(text) {
+  var m = text.match(
+    /Active connections:\s*(\d+)[\s\S]*?server accepts handled requests\s*([\d\s]+)[\s\S]*?Reading:\s*(\d+)\s*Writing:\s*(\d+)\s*Waiting:\s*(\d+)/i
+  );
+  if (!m) return null;
+  var totals = m[2].trim().split(/\s+/).map(Number);
+  if (totals.length < 3) return null;
+  return {
+    active: Number(m[1]),
+    accepts: totals[0],
+    handled: totals[1],
+    requests: totals[2],
+    reading: Number(m[3]),
+    writing: Number(m[4]),
+    waiting: Number(m[5]),
+  };
+}
+
+async function readStubStatus() {
+  var urls = stubUrls();
+  for (var i = 0; i < urls.length; i++) {
+    var body = await httpGet(urls[i], 1500);
+    if (body) {
+      var parsed = parseStubStatus(body);
+      if (parsed) return parsed;
+    }
+  }
+  return null;
+}
+
+// worker 进程数量 / CPU / 常驻内存（Linux 通过 ps 采集）
+async function readWorkers() {
+  if (process.platform === "win32") return null;
+
+  var output;
+  try {
+    output = await execCommand("ps", ["-eo", "pcpu=,rss=,args="], 4000);
+  } catch (e) {
+    return null;
+  }
+
+  var workers = 0;
+  var cpu = 0;
+  var rss = 0;
+  output.split("\n").forEach(function (line) {
+    if (line.indexOf("nginx: worker process") === -1) return;
+    var parts = line.trim().split(/\s+/);
+    var c = parseFloat(parts[0]);
+    var kb = parseInt(parts[1], 10);
+    if (!isNaN(c)) cpu += c;
+    if (!isNaN(kb)) rss += kb;
+    workers++;
+  });
+
+  return {
+    workers: workers,
+    cpu: Math.round(cpu * 10) / 10,
+    memory: Math.round(rss / 1024),
+  };
+}
+
+async function load() {
+  const results = await Promise.all([readStubStatus(), readWorkers()]);
+  return { stub: results[0], process: results[1] };
+}
+
+/* ------------------------------ 性能参数 ------------------------------ */
+
+// 未显式配置时展示 nginx 默认值
+var PERF_DEFAULTS = {
+  worker_processes: "1",
+  worker_connections: "512",
+  keepalive_timeout: "75",
+  gzip: "off",
+  gzip_min_length: "20",
+  gzip_comp_level: "1",
+  client_max_body_size: "1m",
+  server_names_hash_bucket_size: "32",
+  client_header_buffer_size: "1k",
+  client_body_buffer_size: "8k",
+};
+
+function findDirective(text, key) {
+  var re = new RegExp("^[ \\t]*" + key + "[ \\t]+([^;{]+)", "m");
+  var m = text.match(re);
+  return m ? m[1].replace(/\s+/g, " ").trim() : null;
+}
+
+function readMainConfig() {
+  try {
+    return fs.readFileSync(NGINX_C, "utf8");
+  } catch (e) {
+    return "";
+  }
+}
+
+async function performance() {
+  var text = readMainConfig();
+  var items = Object.keys(PERF_DEFAULTS).map(function (key) {
+    var value = findDirective(text, key);
+    return {
+      key: key,
+      value: value || PERF_DEFAULTS[key],
+      isDefault: !value,
+    };
+  });
+  return { items: items };
+}
+
+// 每个参数允许的取值与需要写入的配置块
+var PERF_RULES = {
+  worker_processes: { context: "main", pattern: /^(auto|[1-9][0-9]{0,2})$/i },
+  worker_connections: { context: "events", pattern: /^[1-9][0-9]{0,6}$/ },
+  keepalive_timeout: { context: "http", pattern: /^[1-9][0-9]{0,5}(?:[ \t]+[1-9][0-9]{0,5})?$/ },
+  gzip: { context: "http", pattern: /^(on|off)$/i },
+  gzip_min_length: { context: "http", pattern: /^[0-9]+[kKmM]?$/ },
+  gzip_comp_level: { context: "http", pattern: /^[1-9]$/ },
+  client_max_body_size: { context: "http", pattern: /^[0-9]+[kKmMgG]?$/ },
+  server_names_hash_bucket_size: { context: "http", pattern: /^[1-9][0-9]{0,5}$/ },
+  client_header_buffer_size: { context: "http", pattern: /^[0-9]+[kKmM]?$/ },
+  client_body_buffer_size: { context: "http", pattern: /^[0-9]+[kKmM]?$/ },
+};
+
+// 扫描顶层块（跳过注释与引号内容），返回 { name, start, open }
+function scanTopBlocks(text) {
+  var blocks = [];
+  var depth = 0;
+  var word = "";
+  var wordStart = -1;
+  var inComment = false;
+  var quote = null;
+  var i = 0;
+
+  while (i < text.length) {
+    var ch = text[i];
+
+    if (inComment) {
+      if (ch === "\n") inComment = false;
+      i++;
+      continue;
+    }
+    if (quote) {
+      if (ch === "\\") {
+        i += 2;
+        continue;
+      }
+      if (ch === quote) quote = null;
+      i++;
+      continue;
+    }
+    if (ch === "#") {
+      inComment = true;
+      i++;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      i++;
+      continue;
+    }
+
+    if (depth === 0) {
+      if (/[A-Za-z0-9_]/.test(ch)) {
+        if (!word) wordStart = i;
+        word += ch;
+        i++;
+        continue;
+      }
+      if (ch === "{") {
+        if (word) blocks.push({ name: word, start: wordStart, open: i });
+        depth++;
+        word = "";
+        i++;
+        continue;
+      }
+      if (ch === "}") {
+        if (depth > 0) depth--;
+        word = "";
+        i++;
+        continue;
+      }
+      if (ch === ";") {
+        word = "";
+        i++;
+        continue;
+      }
+      if (!/\s/.test(ch)) word = "";
+      i++;
+      continue;
+    }
+
+    if (ch === "{") depth++;
+    else if (ch === "}") depth--;
+    i++;
+  }
+
+  return blocks;
+}
+
+function replaceDirective(text, key, value) {
+  var re = new RegExp("^([ \\t]*" + key + "[ \\t]+)[^;\\n]*;", "m");
+  if (!re.test(text)) return { text: text, replaced: false };
+  return {
+    text: text.replace(re, function (match, lead) {
+      return lead + value + ";";
+    }),
+    replaced: true,
+  };
+}
+
+function insertDirective(text, context, key, value) {
+  var blocks = scanTopBlocks(text);
+  var line = key + " " + value + ";";
+
+  if (context === "main") {
+    var anchor = null;
+    for (var i = 0; i < blocks.length; i++) {
+      if (blocks[i].name === "events" || blocks[i].name === "http" || blocks[i].name === "stream") {
+        anchor = blocks[i];
+        break;
+      }
+    }
+    if (anchor) return text.slice(0, anchor.start) + line + "\n\n" + text.slice(anchor.start);
+    return line + "\n\n" + text;
+  }
+
+  for (var j = 0; j < blocks.length; j++) {
+    if (blocks[j].name === context) {
+      var open = blocks[j].open;
+      return text.slice(0, open + 1) + "\n    " + line + text.slice(open + 1);
+    }
+  }
+  return null;
+}
+
+async function updatePerformance(values) {
+  if (!values || typeof values !== "object" || Array.isArray(values)) {
+    var err = new Error("请求体缺少 values 对象");
+    err.status = 400;
+    throw err;
+  }
+
+  var keys = Object.keys(values);
+  if (!keys.length) {
+    var empty = new Error("没有需要修改的参数");
+    empty.status = 400;
+    throw empty;
+  }
+
+  var text = readMainConfig();
+  if (!text) {
+    var readErr = new Error("无法读取主配置：" + NGINX_C);
+    readErr.status = 500;
+    throw readErr;
+  }
+
+  keys.forEach(function (key) {
+    var rule = PERF_RULES[key];
+    if (!rule) {
+      var unknown = new Error("不支持的参数：" + key);
+      unknown.status = 400;
+      throw unknown;
+    }
+    var value = String(values[key]).trim();
+    if (!rule.pattern.test(value)) {
+      var invalid = new Error(key + " 取值不合法：" + value);
+      invalid.status = 400;
+      throw invalid;
+    }
+  });
+
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    var value = String(values[key]).trim();
+    var result = replaceDirective(text, key, value);
+    text = result.text;
+    if (!result.replaced) {
+      var next = insertDirective(text, PERF_RULES[key].context, key, value);
+      if (next === null) {
+        var missing = new Error("未找到 " + PERF_RULES[key].context + " 配置块，无法写入 " + key);
+        missing.status = 400;
+        throw missing;
+      }
+      text = next;
+    }
+  }
+
+  await fs.promises.writeFile(NGINX_C, text, "utf8");
+  return performance();
+}
+
 /* ------------------------------ 对外方法 ------------------------------ */
 
 async function status() {
+  const version = await getVersion();
   const found = await readPid();
-  if (!found) return { running: false, pid: null };
-  if (!isAlive(found.pid)) return { running: false, pid: null };
-  return { running: true, pid: found.pid };
+  if (!found) return { running: false, pid: null, version: version };
+  if (!isAlive(found.pid)) return { running: false, pid: null, version: version };
+  return { running: true, pid: found.pid, version: version };
 }
 
 async function start() {
@@ -192,4 +607,7 @@ module.exports = {
   start: start,
   stop: stop,
   reload: reload,
+  load: load,
+  performance: performance,
+  updatePerformance: updatePerformance,
 };

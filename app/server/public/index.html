@@ -206,6 +206,25 @@
         font-weight: 500;
       }
 
+      .version-chip {
+        display: inline-flex;
+        align-items: center;
+        height: 26px;
+        padding: 0 9px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--panel);
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-2);
+        white-space: nowrap;
+        user-select: none;
+      }
+
+      .version-chip.is-unknown {
+        color: #a3aca7;
+      }
+
       @keyframes breathe {
         0%,
         100% {
@@ -315,6 +334,11 @@
         pointer-events: none;
       }
 
+      .btn[aria-pressed="true"] {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
       .btn.is-busy::after {
         content: "";
         position: absolute;
@@ -392,6 +416,280 @@
         color: var(--danger);
         font-size: 12.5px;
         font-weight: 560;
+      }
+
+      /* ---------------- Load bar ---------------- */
+      .loadwrap {
+        flex: none;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .load-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 16px;
+      }
+
+      .load-title {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      .load-head .perf-toggle {
+        margin-left: auto;
+      }
+
+      .loadbar {
+        display: grid;
+        grid-template-columns: repeat(10, minmax(86px, 1fr));
+      }
+
+      .metric {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 1px;
+        padding: 8px 12px;
+        border-right: 1px solid var(--line);
+        min-width: 0;
+      }
+
+      .metric:last-child {
+        border-right: 0;
+      }
+
+      .metric-label {
+        font-size: 10.5px;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .metric-value {
+        font-family: var(--mono);
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .metric-value.is-empty {
+        color: #b9c1bc;
+        font-weight: 500;
+      }
+
+      @media (max-width: 1180px) {
+        .loadbar {
+          grid-template-columns: repeat(5, minmax(86px, 1fr));
+        }
+        .metric:nth-child(5n) {
+          border-right: 0;
+        }
+        .metric:nth-child(-n + 5) {
+          border-bottom: 1px solid var(--line);
+        }
+      }
+
+      @media (max-width: 620px) {
+        .loadbar {
+          grid-template-columns: repeat(3, minmax(80px, 1fr));
+        }
+        .metric {
+          border-bottom: 1px solid var(--line);
+        }
+        .metric:nth-child(5n) {
+          border-right: 1px solid var(--line);
+        }
+        .metric:nth-child(3n) {
+          border-right: 0;
+        }
+        .metric:nth-last-child(-n + 1) {
+          border-bottom: 0;
+        }
+        .metric-value {
+          font-size: 13px;
+        }
+      }
+
+      /* ---------------- Performance panel ---------------- */
+      .perf {
+        flex: none;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .perf-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 16px;
+      }
+
+      .perf-title {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      .perf-note {
+        font-size: 11px;
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .perf-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .perf-btn {
+        height: 24px;
+        padding: 0 10px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: var(--surface);
+        color: var(--ink-2);
+        font-family: var(--font);
+        font-size: 11px;
+        cursor: pointer;
+        flex: none;
+      }
+
+      .perf-btn:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .perf-btn.is-primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #ffffff;
+      }
+
+      .perf-btn.is-primary:hover {
+        background: var(--accent-hover);
+        color: #ffffff;
+      }
+
+      .perf-btn.is-busy {
+        color: transparent !important;
+        pointer-events: none;
+      }
+
+      .perf-input {
+        margin-left: auto;
+        width: 120px;
+        height: 24px;
+        padding: 0 7px;
+        border: 1px solid var(--line-strong);
+        border-radius: 5px;
+        background: var(--surface);
+        color: var(--ink);
+        font-family: var(--mono);
+        font-size: 12.5px;
+        text-align: right;
+      }
+
+      .perf-input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent-soft);
+      }
+
+      .perf-input.is-invalid {
+        border-color: var(--danger);
+        background: var(--danger-soft);
+      }
+
+      .perf-toggle {
+        height: 24px;
+        padding: 0 9px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: var(--surface);
+        color: var(--ink-2);
+        font-family: var(--font);
+        font-size: 11px;
+        cursor: pointer;
+        flex: none;
+      }
+
+      .perf-toggle:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .perf-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+        gap: 8px;
+        padding: 0 12px 12px;
+      }
+
+      .perf-item {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 11px;
+        min-width: 0;
+      }
+
+      .perf-row {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+
+      .perf-name {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .perf-value {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--ink);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .perf-value.is-default {
+        color: var(--ink-2);
+        font-weight: 500;
+      }
+
+      .perf-default-tag {
+        margin-left: 5px;
+        padding: 0 4px;
+        border: 1px solid var(--line-strong);
+        border-radius: 3px;
+        font-size: 9px;
+        font-weight: 500;
+        color: var(--muted);
+        vertical-align: 1px;
+      }
+
+      .perf-desc {
+        margin-top: 2px;
+        font-size: 10.5px;
+        color: var(--muted);
+        line-height: 1.45;
       }
 
       /* ---------------- Workspace ---------------- */
@@ -539,6 +837,38 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+
+      .file-tag {
+        margin-left: 6px;
+        padding: 1px 5px;
+        border-radius: 4px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 9.5px;
+        font-weight: 650;
+        letter-spacing: 0.06em;
+        vertical-align: 1px;
+      }
+
+      .list-section {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 12px 4px;
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        text-transform: uppercase;
+        user-select: none;
+      }
+
+      .list-section::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--line);
       }
 
       .sidebar-foot {
@@ -1073,6 +1403,10 @@
           padding: 0 10px;
         }
 
+        .version-chip {
+          display: none;
+        }
+
         .pill-sub {
           display: none;
         }
@@ -1209,7 +1543,15 @@
           <span id="statusText">检查中…</span>
         </div>
 
+        <span class="version-chip" id="versionChip" hidden></span>
+
         <div class="topbar-actions">
+          <button class="btn ghost" id="btnLoad" type="button" aria-pressed="true" title="显示 / 隐藏负载状态">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12h4l3-8 4 16 3-8h4" />
+            </svg>
+            <span class="btn-text">负载</span>
+          </button>
           <button class="btn ghost" id="btnReload" type="button" title="重新加载配置" disabled>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
               <path d="M20 11a8 8 0 1 0-2.3 6.3" />
@@ -1241,6 +1583,41 @@
         <span id="bannerText">无法连接到后端服务</span>
         <button class="banner-retry" id="bannerRetry" type="button">重试</button>
       </div>
+
+      <!-- 负载状态 -->
+      <section class="loadwrap" aria-label="Nginx 负载状态">
+        <div class="load-head">
+          <span class="load-title">负载状态</span>
+          <button class="perf-toggle" id="loadToggle" type="button" aria-expanded="true">收起</button>
+        </div>
+        <div class="loadbar" id="loadBar">
+        <div class="metric"><span class="metric-label">活动连接</span><span class="metric-value" data-metric="active">—</span></div>
+        <div class="metric"><span class="metric-label">总连接次数</span><span class="metric-value" data-metric="accepts">—</span></div>
+        <div class="metric"><span class="metric-label">总握手次数</span><span class="metric-value" data-metric="handled">—</span></div>
+        <div class="metric"><span class="metric-label">总请求数</span><span class="metric-value" data-metric="requests">—</span></div>
+        <div class="metric"><span class="metric-label">Reading</span><span class="metric-value" data-metric="reading">—</span></div>
+        <div class="metric"><span class="metric-label">Writing</span><span class="metric-value" data-metric="writing">—</span></div>
+        <div class="metric"><span class="metric-label">Waiting</span><span class="metric-value" data-metric="waiting">—</span></div>
+        <div class="metric"><span class="metric-label">工作进程</span><span class="metric-value" data-metric="workers">—</span></div>
+        <div class="metric"><span class="metric-label">Workercpu</span><span class="metric-value" data-metric="cpu">—</span></div>
+        <div class="metric"><span class="metric-label">Workermen</span><span class="metric-value" data-metric="memory">—</span></div>
+        </div>
+      </section>
+
+      <!-- 性能调整 -->
+      <section class="perf" id="perfPanel" aria-label="性能调整">
+        <div class="perf-head">
+          <span class="perf-title">性能调整</span>
+          <span class="perf-note">读取并修改 nginx.conf</span>
+          <div class="perf-actions">
+            <button class="perf-btn" id="perfEdit" type="button">编辑</button>
+            <button class="perf-btn is-primary" id="perfSave" type="button" hidden>保存</button>
+            <button class="perf-btn" id="perfCancel" type="button" hidden>取消</button>
+            <button class="perf-toggle" id="perfToggle" type="button" aria-expanded="true">收起</button>
+          </div>
+        </div>
+        <div class="perf-grid" id="perfGrid"></div>
+      </section>
 
       <!-- Workspace -->
       <main class="workspace">
@@ -1379,15 +1756,19 @@
         /* ============================ 状态 ============================ */
         var state = {
           files: [],
+          mainFile: null,
           filter: "",
           listStatus: "loading", // loading | ready | error
           listError: "",
           active: null,
+          activeKind: null, // main | file
           content: "",
           savedContent: "",
           dirty: false,
           editorLoading: false,
-          status: { known: false, running: false, pid: null },
+          status: { known: false, running: false, pid: null, version: null },
+          load: null,
+          performance: null,
           busy: null, // start | stop | reload | save | delete
         };
 
@@ -1413,6 +1794,7 @@
           app: $("app"),
           statusPill: $("statusPill"),
           statusText: $("statusText"),
+          versionChip: $("versionChip"),
           btnStart: $("btnStart"),
           btnStop: $("btnStop"),
           btnReload: $("btnReload"),
@@ -1421,6 +1803,14 @@
           banner: $("banner"),
           bannerText: $("bannerText"),
           bannerRetry: $("bannerRetry"),
+          loadBar: $("loadBar"),
+          loadToggle: $("loadToggle"),
+          btnLoad: $("btnLoad"),
+          perfGrid: $("perfGrid"),
+          perfToggle: $("perfToggle"),
+          perfEdit: $("perfEdit"),
+          perfSave: $("perfSave"),
+          perfCancel: $("perfCancel"),
           sidebar: $("sidebar"),
           search: $("search"),
           btnRefresh: $("btnRefresh"),
@@ -1451,6 +1841,11 @@
           modalConfirm: $("modalConfirm"),
           btnNewEmpty: $("btnNewEmpty"),
         };
+
+        var metricEls = {};
+        Array.prototype.forEach.call(document.querySelectorAll("[data-metric]"), function (el) {
+          metricEls[el.getAttribute("data-metric")] = el;
+        });
 
         /* ============================ 工具 ============================ */
         function escapeHtml(str) {
@@ -1525,6 +1920,7 @@
           var init = {
             method: options.method || "GET",
             credentials: "same-origin",
+            cache: "no-store",
             headers: {},
             signal: controller ? controller.signal : undefined,
           };
@@ -1580,6 +1976,15 @@
           status: function () {
             return request("/api/status");
           },
+          load: function () {
+            return request("/api/load");
+          },
+          performance: function () {
+            return request("/api/performance");
+          },
+          savePerformance: function (values) {
+            return request("/api/performance", { method: "PUT", body: { values: values } });
+          },
           start: function () {
             return request("/api/start", { method: "POST" });
           },
@@ -1603,6 +2008,15 @@
           },
           remove: function (name) {
             return request("/api/configs/" + encodeURIComponent(name), { method: "DELETE" });
+          },
+          readMain: function () {
+            return request("/api/main-config");
+          },
+          writeMain: function (content) {
+            return request("/api/main-config", {
+              method: "PUT",
+              body: { content: content },
+            });
           },
         };
 
@@ -1641,6 +2055,16 @@
           return "";
         }
 
+        function normalizeMain(payload) {
+          var main = payload && typeof payload === "object" ? payload.main : null;
+          if (!main || typeof main !== "object") return null;
+          return {
+            name: main.name || "nginx.conf",
+            size: typeof main.size === "number" ? main.size : undefined,
+            mtime: main.mtime || main.modified || main.updatedAt || main.mtimeMs,
+          };
+        }
+
         function normalizeStatus(payload) {
           var p = payload && typeof payload === "object" ? payload : {};
           var running = null;
@@ -1650,7 +2074,8 @@
             running = ["running", "active", "started", "online"].indexOf(p.status.toLowerCase()) > -1;
           }
           var pid = p.pid || p.pidfile || null;
-          return { known: running !== null, running: running === true, pid: pid };
+          var version = typeof p.version === "string" && p.version ? p.version : null;
+          return { known: running !== null, running: running === true, pid: pid, version: version };
         }
 
         /* ============================ Toast ============================ */
@@ -1749,10 +2174,334 @@
           renderStatus();
         }
 
+        function setMetric(key, value) {
+          var el = metricEls[key];
+          if (!el) return;
+          if (value === null || value === undefined) {
+            el.textContent = "—";
+            el.classList.add("is-empty");
+          } else {
+            el.textContent = String(value);
+            el.classList.remove("is-empty");
+          }
+        }
+
+        function renderLoad() {
+          var data = state.load || {};
+          var stub = data.stub || null;
+          var proc = data.process || null;
+
+          setMetric("active", stub ? stub.active : null);
+          setMetric("accepts", stub ? stub.accepts : null);
+          setMetric("handled", stub ? stub.handled : null);
+          setMetric("requests", stub ? stub.requests : null);
+          setMetric("reading", stub ? stub.reading : null);
+          setMetric("writing", stub ? stub.writing : null);
+          setMetric("waiting", stub ? stub.waiting : null);
+          setMetric("workers", proc ? proc.workers : null);
+          setMetric("cpu", proc ? proc.cpu + "%" : null);
+          setMetric("memory", proc ? proc.memory + " MB" : null);
+
+          els.loadBar.title = !state.status.running
+            ? "Nginx 未运行，暂无负载数据"
+            : stub
+            ? ""
+            : "未检测到 stub_status，连接与请求数据不可用；worker 数据依赖 Linux ps";
+        }
+
+        function fetchLoad() {
+          if (!state.status.running) {
+            state.load = null;
+            renderLoad();
+            return Promise.resolve();
+          }
+          return API.load()
+            .then(function (data) {
+              state.load = data;
+              renderLoad();
+            })
+            .catch(function () {
+              state.load = null;
+              renderLoad();
+            });
+        }
+
+        /* 负载面板显示 / 隐藏 */
+        var loadOpen = true;
+        try {
+          if (localStorage.getItem("nginx.loadbar") === "0") loadOpen = false;
+        } catch (e) {}
+
+        function applyLoadVisibility() {
+          els.loadBar.hidden = !loadOpen;
+          els.loadToggle.textContent = loadOpen ? "收起" : "展开";
+          els.loadToggle.setAttribute("aria-expanded", loadOpen ? "true" : "false");
+          els.btnLoad.setAttribute("aria-pressed", loadOpen ? "true" : "false");
+        }
+
+        function toggleLoad() {
+          loadOpen = !loadOpen;
+          applyLoadVisibility();
+          try {
+            localStorage.setItem("nginx.loadbar", loadOpen ? "1" : "0");
+          } catch (e) {}
+          if (loadOpen) fetchLoad();
+        }
+
+        /* ---------------- 性能参数区块 ---------------- */
+
+        function formatSize(raw) {
+          var m = String(raw === null || raw === undefined ? "" : raw)
+            .trim()
+            .match(/^(\d+(?:\.\d+)?)\s*([kKmMgG]?)$/);
+          if (!m) return String(raw === null || raw === undefined ? "" : raw) || "—";
+          var unit = (m[2] || "").toLowerCase();
+          var factor = unit === "k" ? 1024 : unit === "m" ? 1048576 : unit === "g" ? 1073741824 : 1;
+          var bytes = parseFloat(m[1]) * factor;
+          function trim(v) {
+            return String(Math.round(v * 10) / 10);
+          }
+          if (bytes >= 1073741824) return trim(bytes / 1073741824) + " GB";
+          if (bytes >= 1048576) return trim(bytes / 1048576) + " MB";
+          if (bytes >= 1024) return trim(bytes / 1024) + " KB";
+          return trim(bytes) + " B";
+        }
+
+        var PERF_FIELDS = [
+          { key: "worker_processes", desc: "处理进程，auto 表示自动，数字表示进程数", fmt: function (v) { return v; } },
+          { key: "worker_connections", desc: "最大并发连接数", fmt: function (v) { return v; } },
+          { key: "keepalive_timeout", desc: "连接超时时间", fmt: function (v) { return String(v).split(/\s+/)[0].replace(/s$/i, "") + " 秒"; } },
+          { key: "gzip", desc: "是否开启压缩传输", fmt: function (v) { return /^on$/i.test(v) ? "开启" : "关闭"; } },
+          { key: "gzip_min_length", desc: "最小压缩文件大小", fmt: formatSize },
+          { key: "gzip_comp_level", desc: "压缩率（1-9）", fmt: function (v) { return v; } },
+          { key: "client_max_body_size", desc: "最大上传文件大小", fmt: formatSize },
+          { key: "server_names_hash_bucket_size", desc: "服务器名字 hash 表大小", fmt: formatSize },
+          { key: "client_header_buffer_size", desc: "客户端请求头 buffer 大小", fmt: formatSize },
+          { key: "client_body_buffer_size", desc: "请求主体缓冲区大小", fmt: formatSize },
+        ];
+
+        var PERF_PATTERNS = {
+          worker_processes: /^(auto|[1-9]\d{0,2})$/i,
+          worker_connections: /^[1-9]\d{0,6}$/,
+          keepalive_timeout: /^[1-9]\d{0,5}(?: [1-9]\d{0,5})?$/,
+          gzip: /^(on|off)$/i,
+          gzip_min_length: /^\d+[kKmM]?$/,
+          gzip_comp_level: /^[1-9]$/,
+          client_max_body_size: /^\d+[kKmMgG]?$/,
+          server_names_hash_bucket_size: /^[1-9]\d{0,5}$/,
+          client_header_buffer_size: /^\d+[kKmM]?$/,
+          client_body_buffer_size: /^\d+[kKmM]?$/,
+        };
+
+        var perfEditing = false;
+
+        function perfRawMap() {
+          var map = {};
+          (state.performance || []).forEach(function (item) {
+            map[item.key] = item;
+          });
+          return map;
+        }
+
+        function renderPerformance(items) {
+          if (!els.perfGrid) return;
+          state.performance = items || null;
+
+          var map = {};
+          (items || []).forEach(function (item) {
+            map[item.key] = item;
+          });
+
+          els.perfGrid.innerHTML = "";
+          PERF_FIELDS.forEach(function (field) {
+            var item = map[field.key];
+
+            var node = document.createElement("div");
+            node.className = "perf-item";
+
+            var row = document.createElement("div");
+            row.className = "perf-row";
+
+            var name = document.createElement("span");
+            name.className = "perf-name";
+            name.textContent = field.key;
+            row.appendChild(name);
+
+            if (perfEditing) {
+              var input;
+              if (field.key === "gzip") {
+                input = document.createElement("select");
+                ["on", "off"].forEach(function (opt) {
+                  var option = document.createElement("option");
+                  option.value = opt;
+                  option.textContent = opt;
+                  input.appendChild(option);
+                });
+              } else {
+                input = document.createElement("input");
+                input.type = "text";
+                input.spellcheck = false;
+              }
+              input.className = "perf-input";
+              input.setAttribute("data-perf-input", field.key);
+              input.value = item ? item.value : "";
+              input.title = field.desc;
+              row.appendChild(input);
+            } else {
+              var value = document.createElement("span");
+              value.className = "perf-value";
+
+              if (!item) {
+                value.textContent = "—";
+                value.classList.add("is-default");
+              } else {
+                value.textContent = field.fmt(item.value);
+                if (item.isDefault) {
+                  value.classList.add("is-default");
+                  value.title = "未在配置中显式设置，显示 nginx 默认值";
+                  var tag = document.createElement("span");
+                  tag.className = "perf-default-tag";
+                  tag.textContent = "默认";
+                  value.appendChild(tag);
+                }
+              }
+              row.appendChild(value);
+            }
+
+            var desc = document.createElement("div");
+            desc.className = "perf-desc";
+            desc.textContent = field.desc;
+
+            node.appendChild(row);
+            node.appendChild(desc);
+            els.perfGrid.appendChild(node);
+          });
+
+          if (els.perfEdit) els.perfEdit.hidden = perfEditing;
+          if (els.perfSave) els.perfSave.hidden = !perfEditing;
+          if (els.perfCancel) els.perfCancel.hidden = !perfEditing;
+        }
+
+        function loadPerformance() {
+          return API.performance()
+            .then(function (data) {
+              renderPerformance(data && data.items);
+            })
+            .catch(function () {
+              renderPerformance(null);
+            });
+        }
+
+        function startPerfEdit() {
+          if (!state.performance) {
+            toast("性能参数尚未加载完成", "error");
+            return;
+          }
+          perfEditing = true;
+          if (!perfOpen) {
+            perfOpen = true;
+            applyPerfVisibility();
+          }
+          renderPerformance(state.performance);
+        }
+
+        function cancelPerfEdit() {
+          perfEditing = false;
+          renderPerformance(state.performance);
+        }
+
+        function savePerfEdit() {
+          var inputs = els.perfGrid.querySelectorAll("[data-perf-input]");
+          var current = perfRawMap();
+          var values = {};
+          var invalidKey = null;
+
+          Array.prototype.forEach.call(inputs, function (input) {
+            var key = input.getAttribute("data-perf-input");
+            var raw = String(input.value || "").trim();
+            var original = current[key] ? String(current[key].value).trim() : "";
+            input.classList.remove("is-invalid");
+
+            if (raw === original) return;
+            if (!PERF_PATTERNS[key] || !PERF_PATTERNS[key].test(raw)) {
+              input.classList.add("is-invalid");
+              if (!invalidKey) invalidKey = key;
+              return;
+            }
+            values[key] = raw;
+          });
+
+          if (invalidKey) {
+            toast(invalidKey + " 取值格式不正确", "error");
+            return;
+          }
+          if (!Object.keys(values).length) {
+            toast("没有修改任何参数");
+            cancelPerfEdit();
+            return;
+          }
+          if (state.active && state.activeKind === "main" && state.dirty) {
+            toast("请先保存或放弃主配置的修改", "error");
+            return;
+          }
+
+          els.perfSave.classList.add("is-busy");
+          API.savePerformance(values)
+            .then(function () {
+              perfEditing = false;
+              toast("性能参数已保存，重载后生效");
+              return loadFiles();
+            })
+            .then(function () {
+              if (state.active && state.activeKind === "main" && !state.dirty) {
+                openFile(state.active, "main", true);
+              }
+            })
+            .catch(function (err) {
+              toast(err.message, "error");
+            })
+            .then(function () {
+              els.perfSave.classList.remove("is-busy");
+            });
+        }
+
+        var perfOpen = true;
+        try {
+          if (localStorage.getItem("nginx.perf") === "0") perfOpen = false;
+        } catch (e) {}
+
+        function applyPerfVisibility() {
+          els.perfGrid.hidden = !perfOpen;
+          els.perfToggle.textContent = perfOpen ? "收起" : "展开";
+          els.perfToggle.setAttribute("aria-expanded", perfOpen ? "true" : "false");
+        }
+
+        function togglePerf() {
+          perfOpen = !perfOpen;
+          applyPerfVisibility();
+          try {
+            localStorage.setItem("nginx.perf", perfOpen ? "1" : "0");
+          } catch (e) {}
+        }
+
+        function renderVersion(s) {
+          els.versionChip.hidden = false;
+          if (s.version) {
+            els.versionChip.textContent = "nginx/" + s.version;
+            els.versionChip.classList.remove("is-unknown");
+            els.versionChip.title = "Nginx 版本";
+          } else {
+            els.versionChip.textContent = "版本未知";
+            els.versionChip.classList.add("is-unknown");
+            els.versionChip.title = "无法获取 Nginx 版本";
+          }
+        }
+
         function renderStatus() {
           var s = state.status;
           var busy = state.busy;
 
+          renderVersion(s);
           els.statusPill.innerHTML = "";
           var dot = document.createElement("span");
           var text = document.createElement("span");
@@ -1806,6 +2555,7 @@
             })
             .then(function () {
               renderStatus();
+              fetchLoad();
             });
         }
 
@@ -1846,6 +2596,62 @@
           els.fileList.appendChild(box);
         }
 
+        function appendSection(title) {
+          var el = document.createElement("div");
+          el.className = "list-section";
+          el.textContent = title;
+          els.fileList.appendChild(el);
+        }
+
+        function buildFileItem(file, kind) {
+          var item = document.createElement("button");
+          item.type = "button";
+          item.className = "file-item";
+          if (state.active === file.name && state.activeKind === kind) {
+            item.setAttribute("aria-current", "true");
+          }
+
+          var icon = document.createElement("span");
+          icon.className = "file-icon";
+          icon.innerHTML =
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>' +
+            '<path d="M14 3v5h5"/></svg>';
+
+          var textBox = document.createElement("span");
+          textBox.className = "file-text";
+
+          var nameEl = document.createElement("span");
+          nameEl.className = "file-name";
+          nameEl.textContent = file.name;
+          if (kind === "main") {
+            var tag = document.createElement("span");
+            tag.className = "file-tag";
+            tag.textContent = "MAIN";
+            nameEl.appendChild(tag);
+          }
+
+          var subEl = document.createElement("span");
+          subEl.className = "file-sub";
+          var parts = [];
+          if (file.size !== undefined) parts.push(formatBytes(file.size));
+          var timeText = formatTime(file.mtime);
+          if (timeText) parts.push(timeText);
+          subEl.textContent = parts.length ? parts.join(" · ") : "配置文件";
+
+          textBox.appendChild(nameEl);
+          textBox.appendChild(subEl);
+          item.appendChild(icon);
+          item.appendChild(textBox);
+
+          item.addEventListener("click", function () {
+            openFile(file.name, kind);
+            closeNav();
+          });
+
+          return item;
+        }
+
         function renderFiles() {
           els.fileList.innerHTML = "";
 
@@ -1871,58 +2677,33 @@
           var visible = state.files.filter(function (f) {
             return !q || f.name.toLowerCase().indexOf(q) > -1;
           });
+          var mainVisible =
+            state.mainFile && (!q || state.mainFile.name.toLowerCase().indexOf(q) > -1);
 
-          if (visible.length === 0) {
-            if (state.files.length === 0) {
+          if (mainVisible) {
+            appendSection("主配置");
+            els.fileList.appendChild(buildFileItem(state.mainFile, "main"));
+          }
+
+          if (visible.length > 0) {
+            appendSection("conf.d");
+            visible.forEach(function (file) {
+              els.fileList.appendChild(buildFileItem(file, "file"));
+            });
+          }
+
+          if (!mainVisible && visible.length === 0) {
+            if (state.files.length === 0 && !state.mainFile) {
               renderListNote("暂无配置文件", "conf.d 目录下还没有 .conf 文件", "新建配置", createFile);
             } else {
               renderListNote("没有匹配结果", "调整搜索关键词试试", null, null);
             }
           }
 
-          visible.forEach(function (file) {
-            var item = document.createElement("button");
-            item.type = "button";
-            item.className = "file-item";
-            if (file.name === state.active) item.setAttribute("aria-current", "true");
-
-            var icon = document.createElement("span");
-            icon.className = "file-icon";
-            icon.innerHTML =
-              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
-              '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>' +
-              '<path d="M14 3v5h5"/></svg>';
-
-            var textBox = document.createElement("span");
-            textBox.className = "file-text";
-
-            var nameEl = document.createElement("span");
-            nameEl.className = "file-name";
-            nameEl.textContent = file.name;
-
-            var subEl = document.createElement("span");
-            subEl.className = "file-sub";
-            var parts = [];
-            if (file.size !== undefined) parts.push(formatBytes(file.size));
-            var timeText = formatTime(file.mtime);
-            if (timeText) parts.push(timeText);
-            subEl.textContent = parts.length ? parts.join(" · ") : "配置文件";
-
-            textBox.appendChild(nameEl);
-            textBox.appendChild(subEl);
-            item.appendChild(icon);
-            item.appendChild(textBox);
-
-            item.addEventListener("click", function () {
-              openFile(file.name);
-              closeNav();
-            });
-
-            els.fileList.appendChild(item);
-          });
-
           els.fileCount.textContent =
-            (q ? visible.length + " / " + state.files.length : state.files.length) + " 个文件";
+            (q ? visible.length + " / " + state.files.length : state.files.length) +
+            " 个文件" +
+            (state.mainFile ? " · 主配置" : "");
         }
 
         function loadFiles(options) {
@@ -1934,12 +2715,15 @@
           return API.list()
             .then(function (data) {
               state.files = normalizeList(data);
+              state.mainFile = normalizeMain(data);
               state.listStatus = "ready";
               state.listError = "";
               hideBanner();
               renderFiles();
-              if (options.autoSelect && !state.active && state.files.length > 0) {
-                openFile(state.files[0].name);
+              loadPerformance();
+              if (options.autoSelect && !state.active) {
+                if (state.files.length > 0) openFile(state.files[0].name, "file");
+                else if (state.mainFile) openFile(state.mainFile.name, "main");
               }
             })
             .catch(function (err) {
@@ -2018,6 +2802,7 @@
           els.dirtyBadge.hidden = !state.dirty;
           els.btnSave.disabled = !state.dirty || state.busy === "save";
           els.btnSave.classList.toggle("is-busy", state.busy === "save");
+          els.btnDelete.hidden = state.activeKind === "main";
           els.btnDelete.disabled = !!state.busy || state.editorLoading;
         }
 
@@ -2033,11 +2818,13 @@
           els.emptyState.hidden = false;
         }
 
-        function openFile(name) {
-          if (name === state.active && !state.editorLoading) return;
+        function openFile(name, kind, force) {
+          kind = kind || "file";
+          if (!force && name === state.active && state.activeKind === kind && !state.editorLoading) return;
 
           var proceed = function () {
             state.active = name;
+            state.activeKind = kind;
             state.editorLoading = true;
             state.content = "";
             state.savedContent = "";
@@ -2055,7 +2842,7 @@
             els.dirtyBadge.hidden = true;
             renderFiles();
 
-            API.read(name)
+            (kind === "main" ? API.readMain() : API.read(name))
               .then(function (data) {
                 var content = normalizeContent(data);
                 state.content = content;
@@ -2079,6 +2866,7 @@
               .catch(function (err) {
                 state.editorLoading = false;
                 state.active = null;
+                state.activeKind = null;
                 showEmptyState();
                 renderFiles();
                 toast("读取 " + name + " 失败：" + err.message, "error");
@@ -2127,14 +2915,15 @@
           if (!state.active || !state.dirty || state.busy) return;
           var name = state.active;
           var content = state.content;
+          var isMain = state.activeKind === "main";
           setBusy("save");
           updateChrome();
 
-          API.write(name, content)
+          (isMain ? API.writeMain(content) : API.write(name, content))
             .then(function () {
               state.savedContent = content;
               state.dirty = false;
-              toast(name + " 已保存", "success");
+              toast(name + " 已保存" + (isMain ? "，重载后生效" : ""), "success");
               return loadFiles();
             })
             .catch(function (err) {
@@ -2147,7 +2936,7 @@
         }
 
         function deleteFile() {
-          if (!state.active || state.busy) return;
+          if (!state.active || state.busy || state.activeKind === "main") return;
           var name = state.active;
           openDialog({
             title: "删除配置文件",
@@ -2162,6 +2951,7 @@
               .then(function () {
                 toast(name + " 已删除", "success");
                 state.active = null;
+                state.activeKind = null;
                 state.content = "";
                 state.savedContent = "";
                 state.dirty = false;
@@ -2169,7 +2959,8 @@
                 return loadFiles();
               })
               .then(function () {
-                if (state.files.length > 0) openFile(state.files[0].name);
+                if (state.files.length > 0) openFile(state.files[0].name, "file");
+                else if (state.mainFile) openFile(state.mainFile.name, "main");
               })
               .catch(function (err) {
                 toast("删除失败：" + err.message, "error");
@@ -2260,6 +3051,12 @@
         }
 
         /* ============================ 事件绑定 ============================ */
+        els.btnLoad.addEventListener("click", toggleLoad);
+        els.loadToggle.addEventListener("click", toggleLoad);
+        els.perfToggle.addEventListener("click", togglePerf);
+        els.perfEdit.addEventListener("click", startPerfEdit);
+        els.perfSave.addEventListener("click", savePerfEdit);
+        els.perfCancel.addEventListener("click", cancelPerfEdit);
         els.btnStart.addEventListener("click", function () {
           powerAction("start");
         });
@@ -2354,6 +3151,8 @@
         });
 
         /* ============================ 启动 ============================ */
+        applyLoadVisibility();
+        applyPerfVisibility();
         renderStatus();
         renderFiles();
         loadFiles({ autoSelect: true });
@@ -2368,13 +3167,19 @@
     <!--
       后端接口契约（在 app/server/routes 中实现，conf.d 目录自行解析）
       ------------------------------------------------------------------
-      GET    /api/status                  → { running: boolean, pid?: number }
+      GET    /api/status                  → { running: boolean, pid?: number, version?: string }
+      GET    /api/load                    → { stub: {active,accepts,handled,requests,reading,writing,waiting}|null,
+                                              process: {workers,cpu,memory}|null }
+      GET    /api/performance             → { items: [{ key, value, isDefault }] }
+      PUT    /api/performance             body { values: { key: string } }，写回 nginx.conf
       POST   /api/start                   → { ok: true }
       POST   /api/stop                    → { ok: true }
       POST   /api/reload                  → { ok: true }
-      GET    /api/configs                 → { files: [{ name, size, mtime }] }
+      GET    /api/configs                 → { files: [{ name, size, mtime }], main: {name,size,mtime}|null }
       GET    /api/configs/:name           → { content: "..." }
       PUT    /api/configs/:name           body { content } → { ok: true }   // 新建或覆盖
+      GET    /api/main-config             → { content: "..." }              // 主配置 nginx.conf
+      PUT    /api/main-config             body { content } → { ok: true }
       DELETE /api/configs/:name           → { ok: true }
 
       说明：
