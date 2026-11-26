@@ -11,3 +11,5 @@ distributor_url       = https://github.com/Big0range/fn-nginx
 desktop_uidir         = ui
 desktop_applaunchname = simple-nginx.Application
 install_dep_apps = nodejs_v24
+service_port          = 12400
+checkport             = true
