@@ -3,7 +3,7 @@
  *
  * 命令形式（与 nginx-control 一致）：
  *   nginx -p <NGINX_P> -c <NGINX_C>             启动
- *   nginx -p <NGINX_P> -c <NGINX_C> -s quit     停止
+ *   nginx -p <NGINX_P> -c <NGINX_C> -s stop     强制停止
  *   nginx -p <NGINX_P> -c <NGINX_C> -s reload   重载
  *
  * 注意：nginx 二进制为 Linux 版本，Windows 下仅能做参数/路径校验，
@@ -579,14 +579,33 @@ async function stop() {
     throw fail('Nginx 未运行', 409);
   }
 
-  await run(['-p', prefixArg(NGINX_P), '-c', NGINX_C, '-s', 'quit']);
+  // 强制停止（SIGTERM），不等待活跃请求
+  await run(['-p', prefixArg(NGINX_P), '-c', NGINX_C, '-s', 'stop']);
 
-  const stopped = await pollUntil(async function () {
+  let stopped = await pollUntil(async function () {
     return !(await status()).running;
-  }, 5000);
+  }, 3000);
+
+  // 仍未退出则直接 SIGKILL
+  if (!stopped && current.pid) {
+    try {
+      process.kill(current.pid, 'SIGKILL');
+    } catch (e) {}
+    stopped = await pollUntil(async function () {
+      return !(await status()).running;
+    }, 2000);
+  }
 
   if (!stopped) {
-    throw fail('已发送停止信号，但 Nginx 进程仍在运行（PID ' + current.pid + '）');
+    throw fail('Nginx 进程无法终止（PID ' + current.pid + '），请检查 logs/error.log');
+  }
+
+  // 进程已退出，清理可能残留的 pid 文件，避免下次误判为运行中
+  const files = pidFiles();
+  for (let i = 0; i < files.length; i++) {
+    try {
+      await fs.promises.unlink(files[i]);
+    } catch (e) {}
   }
 
   return { ok: true };
