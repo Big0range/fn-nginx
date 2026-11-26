@@ -36,6 +36,19 @@ try {
 // 管理接口需要实时数据，关闭 ETag 以免返回 304 空响应
 app.set('etag', false);
 
+// 统一网关会把 /app/simple-nginx 前缀原样转发，这里统一去掉，
+// 后续静态资源与路由仍然按 / 和 /api 处理
+const GATEWAY_PREFIX = '/app/simple-nginx';
+app.use(function (req, res, next) {
+  const url = req.url || '';
+  if (url === GATEWAY_PREFIX || url.indexOf(GATEWAY_PREFIX + '/') === 0 || url.indexOf(GATEWAY_PREFIX + '?') === 0) {
+    let rest = url.slice(GATEWAY_PREFIX.length);
+    if (!rest || rest.charAt(0) === '?') rest = '/' + rest;
+    req.url = rest;
+  }
+  next();
+});
+
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');

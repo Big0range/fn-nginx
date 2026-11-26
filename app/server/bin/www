@@ -7,6 +7,8 @@
 var app = require('../app');
 var debug = require('debug')('myapp:server');
 var http = require('http');
+var fs = require('fs');
+var path = require('path');
 const config = require("../config")
 console.log(config)
 /**
@@ -15,6 +17,12 @@ console.log(config)
 
 var port = normalizePort(config.PORT || '12400');
 app.set('port', port);
+
+/**
+ * 统一网关：fnOS 校验会话后，把 /app/simple-nginx 的请求转发到
+ * ${TRIM_APPDEST}/app.sock，与 app/ui/config 的 gatewaySocket 保持一致。
+ */
+var socketPath = process.env.TRIM_APPDEST ? path.join(process.env.TRIM_APPDEST, 'app.sock') : null;
 
 /**
  * Create HTTP server.
@@ -29,6 +37,25 @@ var server = http.createServer(app);
 server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
+
+if (socketPath) {
+  // 上次进程退出可能残留 socket 文件，不清理会 EADDRINUSE
+  try {
+    fs.unlinkSync(socketPath);
+  } catch (e) {}
+
+  var gatewayServer = http.createServer(app);
+  gatewayServer.on('error', onError);
+  gatewayServer.on('listening', function () {
+    // 网关与应用的运行用户可能不同，连接 Unix Socket 需要写权限
+    try {
+      fs.chmodSync(socketPath, 0o666);
+    } catch (e) {}
+    console.log('Gateway listening on ' + socketPath);
+  });
+  gatewayServer.listen(socketPath);
+}
+
 
 /**
  * Normalize a port into a number, string, or false.
@@ -59,8 +86,8 @@ function onError(error) {
     throw error;
   }
 
-  var bind = typeof port === 'string'
-    ? 'Pipe ' + port
+  var bind = socketPath && error.address === socketPath
+    ? 'Socket ' + socketPath
     : 'Port ' + port;
 
   // handle specific listen errors with friendly messages
@@ -83,9 +110,9 @@ function onError(error) {
  */
 
 function onListening() {
-  var addr = server.address();
+  var addr = this.address();
   var bind = typeof addr === 'string'
-    ? 'pipe ' + addr
+    ? 'socket ' + addr
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
 }
